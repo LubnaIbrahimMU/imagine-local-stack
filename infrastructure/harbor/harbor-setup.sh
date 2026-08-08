@@ -23,7 +23,8 @@ helm repo update
 helm upgrade --install harbor harbor/harbor \
   --namespace harbor \
   --set harborAdminPassword="$HARBOR_PASS" \
-  -f "${SCRIPT_DIR}/harbor-values.yaml"
+  -f "${SCRIPT_DIR}/harbor-values.yml"
+
 
 echo "=== Harbor Registry Deployed Successfully ==="
 echo "Access URL: https://vharbor.aliien.uk"

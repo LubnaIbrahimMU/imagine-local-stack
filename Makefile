@@ -37,14 +37,14 @@ harbor-setup:
 push-images:
 	@./scripts/push-images.sh
 
-dev-up:
-	@helm upgrade --install mypro-dev ./helm/charts/umbrella-app -n dev --create-namespace -f ./helm/values/values-dev.yaml
+deploy-dev:
+	@helm upgrade --install mypro-dev ./helm/charts/umbrella-app -n dev --create-namespace -f ./helm/values/values-dev.yml
 
-uat-up:
-	@helm upgrade --install mypro-uat ./helm/charts/umbrella-app -n uat --create-namespace -f ./helm/values/values-uat.yaml
+deploy-uat:
+	@helm upgrade --install mypro-uat ./helm/charts/umbrella-app -n uat --create-namespace -f ./helm/values/values-uat.yml
 
-prd-up:
-	@helm upgrade --install mypro-prd ./helm/charts/umbrella-app -n prd --create-namespace -f ./helm/values/values-prd.yaml
+deploy-prd:
+	@helm upgrade --install mypro-prd ./helm/charts/umbrella-app -n prd --create-namespace -f ./helm/values/values-prd.yml
 
 test-failover:
 	@./scripts/test-failover.sh dev

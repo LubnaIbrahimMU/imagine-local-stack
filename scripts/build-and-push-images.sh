@@ -100,14 +100,14 @@ EOF
 fi
 
 # 5. Update Helm Chart Values with new image repositories & tags
-FRONTEND_VALUES="${PROJECT_ROOT}/helm/charts/frontend-service/values.yaml"
+FRONTEND_VALUES="${PROJECT_ROOT}/helm/charts/frontend-service/values.yml"
 if [ -f "${FRONTEND_VALUES}" ]; then
   echo "--> Updating Helm frontend image values..."
   sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-frontend|g" "${FRONTEND_VALUES}"
   sed -i "s|tag: .*|tag: ${VERSION_TAG}|g" "${FRONTEND_VALUES}"
 fi
 
-BACKEND_VALUES="${PROJECT_ROOT}/helm/charts/backend-service/values.yaml"
+BACKEND_VALUES="${PROJECT_ROOT}/helm/charts/backend-service/values.yml"
 if [ -f "${BACKEND_VALUES}" ]; then
   echo "--> Updating Helm backend image values..."
   sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-backend|g" "${BACKEND_VALUES}"

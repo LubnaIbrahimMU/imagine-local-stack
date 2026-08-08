@@ -1,0 +1,15 @@
+dependencies:
+- name: frontend-service
+  repository: file://../frontend-service
+  version: 2.0.0
+- name: backend-service
+  repository: file://../backend-service
+  version: 2.0.0
+- name: db-service
+  repository: file://../db-service
+  version: 2.0.0
+- name: redis-service
+  repository: file://../redis-service
+  version: 2.0.0
+digest: sha256:306804c9a7cddfd34a23e6c1c1e53fe648b3bc8e183f86c635477dd09e6dcb4c
+generated: "2026-08-08T21:55:20.749793106+03:00"

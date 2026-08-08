@@ -1,0 +1,15 @@
+0000000000000000000000000000000000000000 8694b616af0cfcc5cb8747756c5fd51c1efc258c LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786145288 +0300	commit (initial): opsv1
+8694b616af0cfcc5cb8747756c5fd51c1efc258c 0000000000000000000000000000000000000000 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786145361 +0300	Branch: renamed refs/heads/master to refs/heads/main
+0000000000000000000000000000000000000000 8694b616af0cfcc5cb8747756c5fd51c1efc258c LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786145361 +0300	Branch: renamed refs/heads/master to refs/heads/main
+8694b616af0cfcc5cb8747756c5fd51c1efc258c 012641f0323d7aee403dd84d791561091d4b4de5 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786146025 +0300	commit: opsv1.
+0000000000000000000000000000000000000000 fa4bedec1ea06167950fe6b409eec44221248172 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786209408 +0300	commit (initial): feat: initial commit for imagine-local-stack enterprise platform
+fa4bedec1ea06167950fe6b409eec44221248172 0000000000000000000000000000000000000000 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786209408 +0300	Branch: renamed refs/heads/fresh-main to refs/heads/main
+0000000000000000000000000000000000000000 fa4bedec1ea06167950fe6b409eec44221248172 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786209408 +0300	Branch: renamed refs/heads/fresh-main to refs/heads/main
+fa4bedec1ea06167950fe6b409eec44221248172 7d137e4079ffcc3365760b04406502840cf3ae44 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786215501 +0300	commit: refactor(gitops): organize app-of-apps/argo.yml and clean gitops apps directory
+7d137e4079ffcc3365760b04406502840cf3ae44 1329bd27362cf6a49eae2360ce59f90bc152be21 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786215619 +0300	commit: refactor(gitops): rename app-of-apps to argo-app-of-apps and standardize all gitops files to .yml
+1329bd27362cf6a49eae2360ce59f90bc152be21 3baf0442541734ac0bd50f63a249e317fa601323 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786215981 +0300	commit: refactor: remove redundant argocd secret template and convert all project manifest references to .yml
+3baf0442541734ac0bd50f63a249e317fa601323 fa4bedec1ea06167950fe6b409eec44221248172 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786216986 +0300	reset: moving to fa4bedec1ea06167950fe6b409eec44221248172
+fa4bedec1ea06167950fe6b409eec44221248172 1e4bf9afe52d01721c5bc6ef715fde15c4ee263a LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786216986 +0300	commit (amend): feat: initial commit for imagine-local-stack enterprise platform
+1e4bf9afe52d01721c5bc6ef715fde15c4ee263a a8e5f2c9e896ad87a4e20974df3432ba78713fbc LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786217500 +0300	commit: refactor(ci): restore workflow to target Harbor vharbor.aliien.uk project pro4
+a8e5f2c9e896ad87a4e20974df3432ba78713fbc 7f6e8ec5dd3ed93305682d5e962d9bccf28a2567 LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786217509 +0300	pull --rebase origin main (start): checkout 7f6e8ec5dd3ed93305682d5e962d9bccf28a2567
+7f6e8ec5dd3ed93305682d5e962d9bccf28a2567 a8e5f2c9e896ad87a4e20974df3432ba78713fbc LubnaIbrahimMu <lubnaibrahim000@gmail.com> 1786217545 +0300	rebase (abort): returning to refs/heads/main

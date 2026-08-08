@@ -72,12 +72,15 @@ mypro/
 │   │   ├── redis-service/              # Cache Deployment, Service, NetPol
 │   │   └── umbrella-app/               # Master Umbrella Parent Chart
 │   └── values/
-│       ├── values-dev.yaml             # Development environment overrides
-│       ├── values-uat.yaml             # Staging UAT environment overrides
-│       └── values-prd.yaml             # Production high-availability overrides
+│       ├── values-dev.yml             # Development environment overrides
+│       ├── values-uat.yml             # Staging UAT environment overrides
+│       └── values-prd.yml             # Production high-availability overrides
+
 ├── gitops/                             # Argo CD Declarative Pipeline
-│   ├── app-of-apps/
-│   │   └── root-application.yaml       # Master App-of-Apps controller manifest
+│   ├── argo-app-of-apps/
+
+│   │   └── argo.yml                    # Master App-of-Apps controller manifest
+
 │   ├── app-projects/                   # Dev, UAT, PRD ArgoCD AppProjects
 │   └── apps/                           # Dev, UAT, PRD ArgoCD Application definitions
 ├── infrastructure/                     # Platform Services & Monitoring

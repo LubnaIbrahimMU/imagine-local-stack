@@ -11,16 +11,18 @@ cloudflare.ini
 .env
 .env.local
 
-
 # Helm dependencies
 charts/*.tgz
 .helm/
 
-# Temporary and log files
+# Temporary, schemas, and log files
 *.log
 .DS_Store
 __pycache__/
 *.pyc
+temp/
+automation/schemas/
+*.pdf
 
 # Docker build artifacts
 .docker/

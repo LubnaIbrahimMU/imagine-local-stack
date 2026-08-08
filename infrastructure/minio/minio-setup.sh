@@ -27,8 +27,9 @@ kubectl create secret generic minio-secret -n minio \
 # Cleanup any stale Bitnami releases if present
 helm uninstall minio -n minio 2>/dev/null || true
 
-kubectl apply -f "${SCRIPT_DIR}/../pv-local.yaml"
-kubectl apply -f "${SCRIPT_DIR}/minio-deployment.yaml"
+kubectl apply -f "${SCRIPT_DIR}/../pv-local.yml"
+kubectl apply -f "${SCRIPT_DIR}/minio-deployment.yml"
+
 
 echo "=== MinIO Object Storage Deployed Successfully ==="
 echo "Access URL:     https://vminio.aliien.uk"

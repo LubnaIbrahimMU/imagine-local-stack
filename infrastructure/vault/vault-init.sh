@@ -20,7 +20,8 @@ helm repo update
 
 helm upgrade --install vault hashicorp/vault \
   --namespace vault \
-  -f "${SCRIPT_DIR}/vault-values.yaml" || true
+  -f "${SCRIPT_DIR}/vault-values.yml" || true
+
 
 echo "Waiting for Vault pod vault-0 to be Running..."
 kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/vault-0 --timeout=120s || true
