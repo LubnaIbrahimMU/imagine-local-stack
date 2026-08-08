@@ -1,4 +1,4 @@
-name: CloudGate MyPro CI/CD Pipeline
+name: CloudGate Imagine CI/CD Pipeline
 
 on:
   push:
@@ -14,9 +14,12 @@ on:
         required: true
         default: 'v2.0.1'
 
+permissions:
+  contents: write
+  packages: write
+
 env:
-  REGISTRY: vharbor.aliien.uk
-  HARBOR_PROJECT: pro4
+  REGISTRY: ghcr.io
   IMAGE_TAG: ${{ github.event.inputs.version_tag || github.sha }}
 
 jobs:
@@ -34,7 +37,7 @@ jobs:
           helm lint helm/charts/backend-service || true
 
   build-and-push:
-    name: Build & Push to Harbor
+    name: Build & Push to Container Registry
     needs: lint-and-validate
     runs-on: ubuntu-latest
     steps:
@@ -44,12 +47,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Harbor Registry
+      - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.HARBOR_USERNAME || 'admin' }}
-          password: ${{ secrets.HARBOR_PASSWORD || 'HarborAdminPassword123' }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v5
@@ -57,8 +60,8 @@ jobs:
           context: ./docker/frontend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend:${{ env.IMAGE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/mypro-frontend:${{ env.IMAGE_TAG }}
+            ghcr.io/${{ github.repository_owner }}/mypro-frontend:latest
 
       - name: Build and Push Backend Image
         uses: docker/build-push-action@v5
@@ -66,8 +69,8 @@ jobs:
           context: ./docker/backend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend:${{ env.IMAGE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend:latest
+            ghcr.io/${{ github.repository_owner }}/mypro-backend:${{ env.IMAGE_TAG }}
+            ghcr.io/${{ github.repository_owner }}/mypro-backend:latest
 
       - name: Build and Push Backup Image
         uses: docker/build-push-action@v5
@@ -75,8 +78,8 @@ jobs:
           context: ./docker/backup
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:latest
+            ghcr.io/${{ github.repository_owner }}/mypro-backup:${{ env.IMAGE_TAG }}
+            ghcr.io/${{ github.repository_owner }}/mypro-backup:latest
 
   update-gitops-and-sync-argo:
     name: Update Helm Values & Trigger Argo CD Sync
@@ -89,8 +92,10 @@ jobs:
 
       - name: Update Helm Image Tags
         run: |
-          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/frontend-service/values.yaml
-          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/backend-service/values.yaml
+          sed -i "s|repository: .*|repository: ghcr.io/${{ github.repository_owner }}/mypro-frontend|g" helm/charts/frontend-service/values.yml
+          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/frontend-service/values.yml
+          sed -i "s|repository: .*|repository: ghcr.io/${{ github.repository_owner }}/mypro-backend|g" helm/charts/backend-service/values.yml
+          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/backend-service/values.yml
 
       - name: Commit & Push GitOps Changes
         run: |
