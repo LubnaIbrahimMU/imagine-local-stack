@@ -13,6 +13,12 @@ DOMAINS=(
     "vargocd.aliien.uk"
     "vapp.aliien.uk"
     "vapi.aliien.uk"
+    "argocd.mypro.local"
+    "vault.mypro.local"
+    "minio.mypro.local"
+    "harbor.mypro.local"
+    "grafana.mypro.local"
+    "app.dev.mypro.local"
 )
 
 echo "======================================================================"

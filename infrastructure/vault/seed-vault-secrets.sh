@@ -86,4 +86,13 @@ if [ -n "$JWT_SECRET" ]; then
     echo "[+] secret/app updated"
 fi
 
+ARGO_USER=$(jq -r '.argocd.admin_user // "admin"' "$SECRETS_FILE")
+ARGO_PASS=$(jq -r '.argocd.admin_password // empty' "$SECRETS_FILE")
+ARGO_URL=$(jq -r '.argocd.url // "https://vargocd.aliien.uk"' "$SECRETS_FILE")
+
+if [ -n "$ARGO_PASS" ]; then
+    kubectl exec -n vault vault-0 -- vault kv put secret/dev/argocd admin-user="$ARGO_USER" admin-password="$ARGO_PASS" url="$ARGO_URL"
+    echo "[+] secret/dev/argocd updated"
+fi
+
 echo "=== Vault Secret Sync Complete! ==="

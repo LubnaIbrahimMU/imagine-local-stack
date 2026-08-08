@@ -27,9 +27,9 @@ echo "=== [3/6] Initializing & Unsealing HashiCorp Vault ==="
 echo "=== [4/6] Deploying Self-Hosted Harbor Registry ==="
 "${BASE_DIR}/infrastructure/harbor/harbor-setup.sh" || true
 
-echo "=== [5/6] Deploying Argo CD GitOps Operator ==="
-kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+echo "=== [5/6] Deploying Metrics Server & Argo CD GitOps Operator ==="
+"${BASE_DIR}/infrastructure/metrics-server/install-metrics-server.sh"
+"${BASE_DIR}/infrastructure/argocd/install-argocd.sh"
 
 echo "=== [6/6] Syncing Reboot Persistence & Local Host Resolution ==="
 "${SCRIPT_DIR}/reboot-persistence-sync.sh"

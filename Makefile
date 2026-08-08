@@ -34,6 +34,12 @@ vault-init:
 eso-setup:
 	@chmod +x ./infrastructure/vault/install-external-secrets.sh && ./infrastructure/vault/install-external-secrets.sh
 
+argocd-install:
+	@chmod +x ./infrastructure/argocd/install-argocd.sh && ./infrastructure/argocd/install-argocd.sh
+
+metrics-server-setup:
+	@chmod +x ./infrastructure/metrics-server/install-metrics-server.sh && ./infrastructure/metrics-server/install-metrics-server.sh
+
 harbor-setup:
 	@./infrastructure/harbor/harbor-setup.sh
 
