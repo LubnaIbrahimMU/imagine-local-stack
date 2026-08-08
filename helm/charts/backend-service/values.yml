@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: vharbor.aliien.uk/pro4/mypro-backend
-  tag: v2.0.1
+  repository: ghcr.io/lubnaibrahimmu/mypro-backend
+  tag: 20bd7087c6bc71d21d8bbc8019401257a7dd90ec
   pullPolicy: IfNotPresent
 
 service:
