@@ -19,7 +19,8 @@ permissions:
   packages: write
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: vharbor.aliien.uk
+  HARBOR_PROJECT: pro4
   IMAGE_TAG: ${{ github.event.inputs.version_tag || github.sha }}
 
 jobs:
@@ -36,84 +37,102 @@ jobs:
           helm lint helm/charts/frontend-service || true
           helm lint helm/charts/backend-service || true
 
-  build-and-push:
-    name: Build & Push to Container Registry
+  build-and-push-harbor:
+    name: Harbor Container Registry Sync
     needs: lint-and-validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set lower case owner name
+      - name: Check Harbor Reachability
+        id: harbor_check
         run: |
-          echo "REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "Checking connection to Harbor registry at ${{ env.REGISTRY }}..."
+          if nc -z -w 3 ${{ env.REGISTRY }} 443 2>/dev/null || nc -z -w 3 ${{ env.REGISTRY }} 80 2>/dev/null; then
+            echo "HARBOR_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "Harbor registry (${{ env.REGISTRY }}) is on a local private network."
+            echo "Local images can be built & pushed directly via: ./scripts/build-and-push-images.sh"
+            echo "HARBOR_AVAILABLE=false" >> $GITHUB_ENV
+          fi
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry (GHCR)
+      - name: Log in to Harbor Registry
+        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+
+      - name: Set up Docker Buildx
+        if: env.HARBOR_AVAILABLE == 'true'
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Frontend Image
+        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/frontend
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-frontend:${{ env.IMAGE_TAG }}
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend:latest
 
       - name: Build and Push Backend Image
+        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/backend
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-backend:${{ env.IMAGE_TAG }}
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-backend:latest
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend:latest
 
       - name: Build and Push Backup Image
+        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/backup
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-backup:${{ env.IMAGE_TAG }}
-            ghcr.io/${{ env.REPO_OWNER }}/mypro-backup:latest
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:latest
 
   update-gitops-and-sync-argo:
-    name: Update Helm Values & Trigger Argo CD Sync
-    needs: build-and-push
+    name: Update Helm Image Tags for Argo CD GitOps
+    needs: build-and-push-harbor
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set lower case owner name
+      - name: Update Helm Image Tags & Chart appVersion to Commit SHA
         run: |
-          echo "REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "Updating Helm image tags and Chart appVersion to commit SHA: ${{ env.IMAGE_TAG }}"
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|g" helm/charts/frontend-service/values.yml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/values.yml
+          sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/Chart.yaml
+          
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|g" helm/charts/backend-service/values.yml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yml
+          sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/Chart.yaml
 
-      - name: Update Helm Image Tags
-        run: |
-          sed -i "s|repository: .*|repository: ghcr.io/${{ env.REPO_OWNER }}/mypro-frontend|g" helm/charts/frontend-service/values.yml
-          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/frontend-service/values.yml
-          sed -i "s|repository: .*|repository: ghcr.io/${{ env.REPO_OWNER }}/mypro-backend|g" helm/charts/backend-service/values.yml
-          sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" helm/charts/backend-service/values.yml
+          sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:\"${{ env.IMAGE_TAG }}\"|g" helm/charts/db-service/values.yml
 
-      - name: Commit & Push GitOps Changes
+
+
+      - name: Commit & Push GitOps Tag Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add helm/charts/
-          git commit -m "chore(gitops): update application image tag to ${{ env.IMAGE_TAG }}" || echo "No changes to commit"
+          git commit -m "chore(gitops): update frontend & backend image tags to ${{ env.IMAGE_TAG }}" || echo "No changes to commit"
           git push origin HEAD
 
       - name: Trigger Argo CD Auto Sync
         run: |
           echo "=== GitOps Commit Pushed. Argo CD Auto-Sync Enabled! ==="
-          echo "Argo CD will automatically detect the new image tag commit '${{ env.IMAGE_TAG }}' and sync the deployment."
+          echo "Argo CD will automatically detect commit '${{ env.IMAGE_TAG }}' and sync the deployment in dev, uat, and prd!"

@@ -9,7 +9,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 REGISTRY_DOMAIN="${1:-vharbor.aliien.uk}"
 PROJECT_NAME="${2:-pro4}"
-VERSION_TAG="${3:-v2.0.0}"
+VERSION_TAG="${3:-v2.0.1}"
+
 
 FULL_REGISTRY="${REGISTRY_DOMAIN}/${PROJECT_NAME}"
 

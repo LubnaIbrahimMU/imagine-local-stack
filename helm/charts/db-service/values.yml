@@ -1,9 +1,6 @@
 mysql:
   image: mysql:8.0
-  rootPassword: root_password_123
-  user: appuser
-  password: app_password
-  database: appdb
+  existingSecret: mypro-dev-db-secret
 
 persistence:
   enabled: true
@@ -13,7 +10,7 @@ persistence:
 backupCronJob:
   enabled: true
   schedule: "0 */6 * * *"
-  image: harbor.mypro.local/library/mypro-backup:v2.0.0
+  image: vharbor.aliien.uk/pro4/mypro-backup:latest
 
 resources:
   limits:

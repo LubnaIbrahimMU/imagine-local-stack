@@ -50,12 +50,13 @@ spec:
                   key: db-password
           livenessProbe:
             exec:
-              command: ["mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p{{ .Values.mysql.rootPassword }}"]
+              command: ["mysqladmin", "ping", "-h", "localhost"]
             initialDelaySeconds: 25
             periodSeconds: 10
           readinessProbe:
             exec:
-              command: ["mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p{{ .Values.mysql.rootPassword }}"]
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+
             initialDelaySeconds: 15
             periodSeconds: 5
           resources:

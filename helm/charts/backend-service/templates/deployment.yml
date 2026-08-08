@@ -44,7 +44,8 @@ spec:
         runAsUser: {{ .Values.securityContext.runAsUser }}
       containers:
         - name: backend
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -72,11 +73,20 @@ spec:
             - name: MINIO_ENDPOINT
               value: "{{ .Values.env.minioEndpoint }}"
             - name: MINIO_ACCESS_KEY
-              value: "{{ .Values.env.minioAccessKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+                  optional: true
             - name: MINIO_SECRET_KEY
-              value: "{{ .Values.env.minioSecretKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+                  optional: true
             - name: MINIO_BUCKET
               value: "{{ .Values.env.minioBucket }}"
+
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
