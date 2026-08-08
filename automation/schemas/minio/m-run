@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+TEMP_DIR="${PROJECT_ROOT}/temp"
+
+mkdir -p "${TEMP_DIR}"
+
+action="${1:-}"
+
+run_operation() {
+  local payload_json="$1"
+  docker run --rm \
+    --net=host \
+    -u 0 \
+    -e HOST_UID="$(id -u)" \
+    -e HOST_GID="$(id -g)" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /usr/bin/docker:/usr/bin/docker \
+    -v "${HOME}":"${HOME}":ro \
+    -v "${HOME}/.kube":/home/ansible/.kube:ro \
+    -v "${HOME}/.minikube":"${HOME}/.minikube":ro \
+    -v "${PROJECT_ROOT}/automation":/playbook-template:ro \
+    -v "${TEMP_DIR}":/temp \
+    -v "${SCRIPT_DIR}":/minio-input:ro \
+    -w /playbook-template \
+    942005246233.dkr.ecr.us-east-1.amazonaws.com/cloudgate/ansible:dev_f22b61c \
+    sh -lc "
+      install -d -o 1001 -g 1001 -m 700 /tmp/ansible-tmp &&
+      chmod 666 /var/run/docker.sock 2>/dev/null || true &&
+      cp -r /home/ansible/.kube /tmp/kube-config 2>/dev/null || true &&
+      cp -r \"${HOME}/.minikube\" /tmp/minikube-certs 2>/dev/null || true &&
+      chown -R 1001:1001 /tmp/kube-config /tmp/minikube-certs /temp 2>/dev/null || true &&
+      chmod -R 755 /tmp/kube-config /tmp/minikube-certs 2>/dev/null || true &&
+      chmod 644 /tmp/minikube-certs/profiles/minikube/client.key 2>/dev/null || true &&
+      sed -i \"s|${HOME}/.minikube|/tmp/minikube-certs|g\" /tmp/kube-config/config 2>/dev/null || true &&
+      SRC_PATH=\$(python3 -c \"import json; data=json.load(open('/minio-input/$payload_json')); print(data.get('src_file') or data.get('provisioning_spec',{}).get('service_config',{}).get('file_path') or '')\" 2>/dev/null || true) &&
+      if [ -n \"\$SRC_PATH\" ] && [ -f \"\$SRC_PATH\" ]; then
+        cp \"\$SRC_PATH\" /temp/\$(basename \"\$SRC_PATH\") &&
+        chmod 666 /temp/\$(basename \"\$SRC_PATH\") &&
+        chown 1001:1001 /temp/\$(basename \"\$SRC_PATH\")
+      fi &&
+      sudo -u ansible env \
+        HOME=/home/ansible \
+        KUBECONFIG=/tmp/kube-config/config \
+        ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
+        ansible-playbook \
+          managedservices/minio/minio-operations.yml \
+          -i \"localhost,\" \
+          -e \"ansible_connection=local\" \
+          --tags \"operations\" \
+          --extra-vars @/minio-input/$payload_json \
+          -vv
+      status=\$?
+      chown -R \"\$HOST_UID:\$HOST_GID\" /temp
+      exit \"\$status\"
+    "
+}
+
+case "$action" in
+  create)
+    run_operation "schema.json"
+    ;;
+
+  create-bucket)
+    run_operation "create-bucket.json"
+    ;;
+
+  delete-bucket)
+    run_operation "delete-bucket.json"
+    ;;
+
+  create-user)
+    run_operation "create-user.json"
+    ;;
+
+  delete-user)
+    run_operation "delete-user.json"
+    ;;
+
+  reset-user-password)
+    run_operation "reset-user-password.json"
+    ;;
+
+  reset-root-password)
+    run_operation "reset-root-password.json"
+    ;;
+
+  create-group)
+    run_operation "create-group.json"
+    ;;
+
+  delete-group)
+    run_operation "delete-group.json"
+    ;;
+
+  attach-policy)
+    run_operation "attach-policy.json"
+    ;;
+
+  upload-file)
+    run_operation "upload-file.json"
+    ;;
+
+  fetch-info)
+    run_operation "fetch-info.json"
+    ;;
+
+  *)
+    echo "Usage: $0 {create|create-bucket|delete-bucket|create-user|delete-user|reset-user-password|reset-root-password|create-group|delete-group|attach-policy|upload-file|fetch-info}" >&2
+    exit 2
+    ;;
+esac

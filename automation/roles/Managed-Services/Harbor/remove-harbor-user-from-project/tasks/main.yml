@@ -1,0 +1,58 @@
+---
+- name: Validate Harbor project membership removal input
+  ansible.builtin.assert:
+    that:
+      - harbor_selected_username is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - harbor_selected_project is match('^[a-z0-9][a-z0-9._-]*$')
+    fail_msg: "A valid user_username and project_name are required."
+    quiet: true
+
+- name: Find selected Harbor project membership
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_selected_project | urlencode }}/members?entityname={{ harbor_selected_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_selected_membership_search
+  changed_when: false
+
+- name: Select exact Harbor project membership
+  ansible.builtin.set_fact:
+    harbor_selected_memberships: >-
+      {%- set matches = [] -%}
+      {%- for member in (harbor_selected_membership_search.json | default([])) -%}
+        {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+        {%- if member_username == harbor_selected_username -%}
+          {%- set _ = matches.append(member) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ matches }}
+
+- name: Remove selected Harbor user from project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_selected_project | urlencode }}/members/{{ (harbor_selected_memberships | first).id }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code:
+      - 200
+      - 204
+      - 404
+  when: harbor_selected_memberships | length > 0
+
+- name: Set Harbor project membership removal result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: remove_user_from_project
+      username: "{{ harbor_selected_username }}"
+      project_name: "{{ harbor_selected_project }}"
+      removed: "{{ harbor_selected_memberships | length > 0 }}"
+      message: >-
+        {{ 'Harbor user removed from project' if harbor_selected_memberships | length > 0 else 'Harbor user was not assigned to project' }}

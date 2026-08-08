@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    app.kubernetes.io/name: backend-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend-service
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend-service
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        {{- if .Values.vault.enabled }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: {{ .Values.vault.role | quote }}
+        vault.hashicorp.com/agent-inject-secret-db-config: {{ .Values.vault.secretPath | quote }}
+        vault.hashicorp.com/agent-inject-template-db-config: |
+          {{ `{{- with secret "` }}{{ .Values.vault.secretPath }}{{ `" -}}` }}
+          export DB_USER="{{ `{{ .Data.data.username }}` }}"
+          export DB_PASSWORD="{{ `{{ .Data.data.password }}` }}"
+          export API_KEY="{{ `{{ .Data.data.api_key }}` }}"
+          export MINIO_ENDPOINT="{{ `{{ .Data.data.minio_endpoint }}` }}"
+          export MINIO_ACCESS_KEY="{{ `{{ .Data.data.minio_access_key }}` }}"
+          export MINIO_SECRET_KEY="{{ `{{ .Data.data.minio_secret_key }}` }}"
+          export MINIO_BUCKET="{{ `{{ .Data.data.minio_bucket }}` }}"
+          {{ `{{- end -}}` }}
+
+        {{- end }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: {{ .Release.Name }}-backend-sa
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-{{ .Values.env.dbHost }}"
+            - name: DB_PORT
+              value: "{{ .Values.env.dbPort }}"
+            - name: DB_NAME
+              value: "{{ .Values.env.dbName }}"
+            - name: DB_USER
+              value: "{{ .Values.env.dbUser }}"
+            - name: DB_STANDBY_HOST
+              value: "{{ .Release.Name }}-{{ .Values.env.dbStandbyHost }}"
+            - name: REDIS_HOST
+              value: "{{ .Release.Name }}-{{ .Values.env.redisHost }}"
+            - name: REDIS_PORT
+              value: "{{ .Values.env.redisPort }}"
+            - name: CACHE_TTL
+              value: "{{ .Values.env.cacheTtl }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.env.logLevel }}"
+            - name: MINIO_ENDPOINT
+              value: "{{ .Values.env.minioEndpoint }}"
+            - name: MINIO_ACCESS_KEY
+              value: "{{ .Values.env.minioAccessKey }}"
+            - name: MINIO_SECRET_KEY
+              value: "{{ .Values.env.minioSecretKey }}"
+            - name: MINIO_BUCKET
+              value: "{{ .Values.env.minioBucket }}"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-db-secret
+                  key: db-password
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 12
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 6
+            periodSeconds: 5
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+            capabilities:
+              drop:
+                - ALL

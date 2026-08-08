@@ -1,0 +1,52 @@
+---
+- name: Set facts for MinIO user creation
+  ansible.builtin.set_fact:
+    m_user: "{{ minio_user | default(user_name | default(user_username | default(cg_spec.user_name | default('app-user', true), true), true), true) }}"
+    m_secret: "{{ minio_secret | default(user_password | default(new_password | default(cg_spec.user_password | default('AppUserSecretPassword123!', true), true), true), true) }}"
+    m_policy: "{{ minio_policy | default(policy_name | default(cg_spec.policy_name | default('readwrite', true), true), true) }}"
+    m_root_user: "{{ root_user | default(cg_spec.root_user | default(minio_root_user_input | default('admin', true), true), true) }}"
+    m_root_pass: "{{ root_password | default(cg_spec.root_password | default(cg_spec.service_config.root_password | default(minio_root_password_input | default('MinioAdminPassword123', true), true), true), true) }}"
+    m_endpoint: "{{ endpoint | default('http://127.0.0.1:9000', true) }}"
+    m_container: "{{ minio_container | default('cloudgate_managed_minio', true) }}"
+
+- name: Validate create user inputs
+  ansible.builtin.assert:
+    that:
+      - m_user | length > 0
+      - m_secret | length > 0
+    fail_msg: "minio_user and minio_secret are required for create_user operation"
+    quiet: true
+
+- name: Create MinIO User via Docker container or Kubernetes pod
+  ansible.builtin.shell: |
+    if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ m_container }}$"; then
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} {{ m_root_pass }}
+      docker exec {{ m_container }} mc admin user add local {{ m_user }} {{ m_secret }}
+      if [ -n "{{ m_policy }}" ]; then
+        docker exec {{ m_container }} mc admin policy attach local {{ m_policy }} --user {{ m_user }} 2>/dev/null || docker exec {{ m_container }} mc admin policy set local {{ m_policy }} user={{ m_user }}
+      fi
+    elif command -v kubectl &>/dev/null; then
+      POD_NAME=$(kubectl get pod -n minio -l app=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}' 2>/dev/null || kubectl get pod -n minio -l app.kubernetes.io/name=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}')
+      if [ -n "$POD_NAME" ]; then
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || true
+        kubectl exec -n minio "$POD_NAME" -- mc admin user add local {{ m_user }} {{ m_secret }}
+        if [ -n "{{ m_policy }}" ]; then
+          kubectl exec -n minio "$POD_NAME" -- mc admin policy attach local {{ m_policy }} --user {{ m_user }} 2>/dev/null || kubectl exec -n minio "$POD_NAME" -- mc admin policy set local {{ m_policy }} user={{ m_user }} 2>/dev/null || true
+        fi
+      else
+        echo "MinIO pod not found in minio namespace" && exit 1
+      fi
+    else
+      echo "MinIO container or Kubernetes pod not found" && exit 1
+    fi
+  register: create_user_res
+  changed_when: false
+
+- name: Set fact for create_user result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      action: create_user
+      access_key: "{{ m_user }}"
+      policy: "{{ m_policy }}"
+      message: "MinIO user '{{ m_user }}' created successfully with policy '{{ m_policy }}'"

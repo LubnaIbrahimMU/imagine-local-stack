@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-redis-netpol
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis-service
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend-service
+      ports:
+        - protocol: TCP
+          port: 6379

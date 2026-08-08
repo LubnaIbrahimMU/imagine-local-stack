@@ -1,0 +1,16 @@
+---
+harbor_local_url: ""
+harbor_username: "admin"
+harbor_password: ""
+harbor_validate_certs: true
+harbor_api_version: "v2.0"
+harbor_api_base_url: "{{ harbor_local_url }}/api/{{ harbor_api_version }}"
+harbor_page_size: 100
+harbor_project_filter: ""
+harbor_temp_dir: "/tmp"
+harbor_user_role_names:
+  1: project_admin
+  2: developer
+  3: guest
+  4: maintainer
+  5: limited_guest

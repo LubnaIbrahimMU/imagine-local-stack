@@ -1,0 +1,31 @@
+{
+  "key_name": "local-minio-k8s",
+  "temp_dir": "/tmp/local-minio",
+  "connection_method": "k8s_cluster",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "k8s-pod-managed-minio@v1",
+    "metadata": {
+      "subscription_id": "SUB_MINIO_K8S",
+      "vendor_id": "V_LOCAL",
+      "service_key_id": "SK_MINIO"
+    },
+    "service_config": {
+      "cluster_dns": "http://minio.minio.svc.cluster.local:9000",
+      "domain_dns": {
+        "enabled": true,
+        "domain": "aliien.uk",
+        "subdomain": "vminio",
+        "full_url": "https://vminio.aliien.uk",
+        "ssl_enabled": true
+      },
+      "k8s_config": {
+        "namespace": "minio",
+        "helm_release": "minio",
+        "service_name": "minio",
+        "api_port": 9000,
+        "console_port": 9001
+      }
+    }
+  }
+}

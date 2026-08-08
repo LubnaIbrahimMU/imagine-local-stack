@@ -1,0 +1,145 @@
+---
+- name: Validate Harbor user deletion input
+  ansible.builtin.assert:
+    that:
+      - harbor_selected_username is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - harbor_selected_username != 'admin'
+      - harbor_selected_username != harbor_username
+    fail_msg: >-
+      A valid non-admin user_username is required. The authenticated Harbor
+      administrator cannot delete itself.
+    quiet: true
+
+- name: Find Harbor user selected for deletion
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users?username={{ harbor_selected_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_delete_user_search
+  changed_when: false
+
+- name: Select exact Harbor user for deletion
+  ansible.builtin.set_fact:
+    harbor_delete_user_matches: >-
+      {{ harbor_delete_user_search.json | default([]) | selectattr('username', 'equalto', harbor_selected_username) | list }}
+
+- name: Fetch first Harbor project page before user deletion
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page=1&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_delete_user_project_first_page
+  changed_when: false
+  when: harbor_delete_user_matches | length > 0
+
+- name: Fetch remaining Harbor project pages before user deletion
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page={{ item }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: >-
+    {{
+      range(
+        2,
+        (((harbor_delete_user_project_first_page.x_total_count | default(harbor_delete_user_project_first_page.json | length) | int) + (harbor_page_size | int) - 1) // (harbor_page_size | int)) + 1
+      ) | list
+    }}
+  register: harbor_delete_user_project_remaining_pages
+  changed_when: false
+  when: harbor_delete_user_matches | length > 0
+
+- name: Merge Harbor projects before user deletion
+  ansible.builtin.set_fact:
+    harbor_delete_user_projects: >-
+      {{
+        harbor_delete_user_project_first_page.json | default([])
+        + (harbor_delete_user_project_remaining_pages.results | default([]) | map(attribute='json') | select('defined') | list | flatten)
+      }}
+  when: harbor_delete_user_matches | length > 0
+
+- name: Find selected Harbor user across projects
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.name | urlencode }}/members?entityname={{ harbor_selected_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: "{{ harbor_delete_user_projects | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: harbor_delete_user_membership_searches
+  changed_when: false
+  when: harbor_delete_user_matches | length > 0
+
+- name: Normalize selected Harbor user memberships
+  ansible.builtin.set_fact:
+    harbor_delete_user_memberships: >-
+      {%- set memberships = [] -%}
+      {%- for result in (harbor_delete_user_membership_searches.results | default([])) -%}
+        {%- for member in (result.json | default([])) -%}
+          {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+          {%- if member_username == harbor_selected_username -%}
+            {%- set _ = memberships.append({'project_name': result.item.name, 'member_id': member.id}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ memberships }}
+
+- name: Remove Harbor user project memberships before deletion
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.project_name | urlencode }}/members/{{ item.member_id }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code:
+      - 200
+      - 204
+      - 404
+  loop: "{{ harbor_delete_user_memberships }}"
+  loop_control:
+    label: "{{ item.project_name }}"
+
+- name: Delete selected Harbor user
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users/{{ (harbor_delete_user_matches | first).user_id }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code:
+      - 200
+      - 204
+      - 404
+  when: harbor_delete_user_matches | length > 0
+
+- name: Set Harbor user deletion result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: delete_user
+      username: "{{ harbor_selected_username }}"
+      memberships_removed: "{{ harbor_delete_user_memberships | default([]) | length }}"
+      deleted: "{{ harbor_delete_user_matches | length > 0 }}"
+      message: >-
+        {{ 'Harbor user and project assignments deleted' if harbor_delete_user_matches | length > 0 else 'Harbor user no longer exists' }}

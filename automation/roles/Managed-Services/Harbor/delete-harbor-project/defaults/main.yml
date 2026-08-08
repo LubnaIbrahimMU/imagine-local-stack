@@ -1,0 +1,3 @@
+---
+harbor_project_name: "{{ harbor_config.project_name | default('') }}"
+harbor_delete_project_repositories: "{{ harbor_config.delete_repositories | default(true) | bool }}"

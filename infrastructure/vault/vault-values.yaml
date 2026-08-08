@@ -1,0 +1,22 @@
+server:
+  dev:
+    enabled: false
+  standalone:
+    enabled: true
+  dataStorage:
+    enabled: true
+    storageClass: local-storage
+    size: 500Mi
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - host: vvault.aliien.uk
+    tls:
+      - secretName: aliien-uk-tls
+        hosts:
+          - vvault.aliien.uk
+
+injector:
+  enabled: true
+  replicas: 1

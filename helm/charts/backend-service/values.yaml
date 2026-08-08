@@ -1,0 +1,58 @@
+replicaCount: 2
+
+image:
+  repository: vharbor.aliien.uk/pro4/mypro-backend
+  tag: v2.0.1
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5000
+
+vault:
+  enabled: true
+  role: app-role
+  secretPath: secret/data/dev/database
+
+env:
+  dbHost: db-primary
+  dbPort: "3306"
+  dbName: appdb
+  dbUser: appuser
+  dbStandbyHost: db-standby
+  redisHost: redis-service
+  redisPort: "6379"
+  cacheTtl: "30"
+  logLevel: INFO
+  minioEndpoint: "http://minio-service.minio.svc.cluster.local:9000"
+  minioAccessKey: "admin"
+  minioSecretKey: "NewRootPassword123$"
+  minioBucket: "minioooo"
+
+
+resources:
+  limits:
+    cpu: 350m
+    memory: 384Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL

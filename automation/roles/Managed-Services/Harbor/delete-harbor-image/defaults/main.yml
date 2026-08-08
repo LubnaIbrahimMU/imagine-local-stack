@@ -1,0 +1,11 @@
+---
+harbor_local_url: ""
+harbor_username: "admin"
+harbor_password: ""
+harbor_validate_certs: true
+harbor_api_version: "v2.0"
+harbor_api_base_url: "{{ harbor_local_url }}/api/{{ harbor_api_version }}"
+harbor_delete_project: "{{ harbor_config.project_name | default('') }}"
+harbor_delete_repository: "{{ harbor_config.repository_name | default('') }}"
+harbor_delete_digest: "{{ harbor_config.digest | default('') }}"
+harbor_delete_repository_entirely: "{{ harbor_config.delete_repository | default(false) | bool }}"

@@ -1,0 +1,45 @@
+{
+  "key_name": "local-harbor-k8s",
+  "action_key": "add_project",
+  "temp_dir": "/tmp/local-harbor",
+  "connection_method": "k8s_cluster",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "k8s-pod-managed-harbor@v1",
+    "action_key": "add_project",
+    "metadata": {
+      "subscription_id": "SUB_HARBOR_K8S",
+      "vendor_id": "V_LOCAL",
+      "service_key_id": "SK_HARBOR"
+    },
+    "service_config": {
+      "project_name": "pro4",
+      "public_project": true,
+      "cluster_dns": "http://harbor-core.harbor.svc.cluster.local",
+      "domain_dns": {
+        "enabled": true,
+        "domain": "aliien.uk",
+        "subdomain": "vharbor",
+        "full_url": "https://vharbor.aliien.uk",
+        "ssl_enabled": true
+      },
+      "k8s_config": {
+        "namespace": "harbor",
+        "helm_release": "harbor",
+        "service_name": "harbor-core",
+        "port": 80
+      }
+    },
+    "resources": {
+      "VM": [
+        {
+          "publicIP": "vharbor.aliien.uk"
+        }
+      ]
+    },
+    "credentials": {
+      "username": "admin",
+      "password": "HarborAdminPassword123"
+    }
+  }
+}

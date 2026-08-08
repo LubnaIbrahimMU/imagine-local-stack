@@ -1,0 +1,14 @@
+controller:
+  name: controller
+  image:
+    registry: registry.k8s.io
+    image: ingress-nginx/controller
+    tag: "v1.9.4"
+  service:
+    type: LoadBalancer
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+  podSecurityContext:
+    runAsNonRoot: true

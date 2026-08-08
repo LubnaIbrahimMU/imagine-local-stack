@@ -1,0 +1,24 @@
+{
+  "key_name": "local-minio",
+  "temp_dir": "/tmp/local-minio",
+  "action_key": "delete_bucket",
+  "bucket_name": "app-data",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "local-managed-minio@v1",
+    "metadata": {
+      "subscription_id": "SUB_MINIO_LOCAL",
+      "vendor_id": "V_LOCAL",
+      "service_key_id": "SK_MINIO"
+    },
+    "action_key": "delete_bucket",
+    "service_config": {
+      "domain_dns": {
+        "enabled": true,
+        "domain": "aliien.uk",
+        "subdomain": "minio",
+        "full_url": "https://minio.aliien.uk"
+      }
+    }
+  }
+}

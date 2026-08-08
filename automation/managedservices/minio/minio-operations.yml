@@ -1,0 +1,100 @@
+---
+- name: Managed MinIO Operations
+  hosts: all
+  gather_facts: false
+  tags:
+    - operations
+    - minio_operations
+  vars:
+    cg_spec: "{{ provisioning_spec | default({}) }}"
+    minio_vm_ip: "{{ (((cg_spec.resources | default({})).VM | default([{}]))[0]).publicIP | default('', true) }}"
+    minio_dns_url: "{{ (cg_spec.service_config.domain_dns.full_url) if (cg_spec is mapping and cg_spec.service_config is defined and cg_spec.service_config is mapping and cg_spec.service_config.domain_dns is defined and cg_spec.service_config.domain_dns is mapping and cg_spec.service_config.domain_dns.full_url is defined) else '' }}"
+    minio_target_endpoint: "{{ minio_dns_url if (minio_dns_url | length > 0) else (('http://' ~ minio_vm_ip ~ ':9000') if (minio_vm_ip | length > 0) else 'http://127.0.0.1:9000') }}"
+
+  tasks:
+    - name: "[CG] Run create-minio-bucket"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/create-minio-bucket
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'create_bucket'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run delete-minio-bucket"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/delete-minio-bucket
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'delete_bucket'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run create-minio-user"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/create-minio-user
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'create_user'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run delete-minio-user"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/delete-minio-user
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'delete_user'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run reset-minio-user-password"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/reset-minio-user-password
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'reset_user_password'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run reset-minio-root-password"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/reset-minio-root-password
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'reset_root_password'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run create-minio-group"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/create-minio-group
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'create_group'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run delete-minio-group"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/delete-minio-group
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'delete_group'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run attach-minio-policy"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/attach-minio-policy
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'attach_policy'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run upload-minio-file"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/upload-minio-file
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'upload_file'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Run fetch-minio-info"
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/MinIO/fetch-minio-info
+      when: (action_key | default(cg_spec.action_key | default(''))) == 'fetch_info'
+      vars:
+        endpoint: "{{ minio_target_endpoint }}"
+
+    - name: "[CG] Display MinIO operation result"
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  Status: {{ cg_result.status | default('') }}"
+          - "  Action: {{ cg_result.action | default('') }}"
+          - "  Message: {{ cg_result.message | default('') }}"
+          - "============================================"
+      when: cg_result is defined

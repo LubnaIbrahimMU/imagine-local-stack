@@ -1,0 +1,7 @@
+Flask==3.0.0
+mysql-connector-python==8.2.0
+prometheus_flask_exporter==0.23.0
+redis==5.0.1
+gunicorn==21.2.0
+boto3==1.34.0
+

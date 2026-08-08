@@ -1,0 +1,45 @@
+# Production Environment Configuration
+frontend-service:
+  replicaCount: 3
+  ingress:
+    enabled: true
+    host: app.prd.mypro.local
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 65
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+
+backend-service:
+  replicaCount: 3
+  vault:
+    enabled: true
+    secretPath: secret/data/prd/database
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 65
+  resources:
+    limits:
+      cpu: 750m
+      memory: 768Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  env:
+    logLevel: WARN
+
+db-service:
+  persistence:
+    size: 20Gi
+
+redis-service:
+  replicaCount: 2

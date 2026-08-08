@@ -1,0 +1,70 @@
+---
+- name: Validate Harbor image batch
+  ansible.builtin.assert:
+    that:
+      - harbor_project_name is match('^[a-z0-9][a-z0-9._-]*$')
+      - harbor_local_registry | length > 0
+      - harbor_images | length > 0
+      - harbor_image_batch_targets | length == (harbor_image_batch_targets | unique | length)
+    fail_msg: >-
+      project_name, local_registry, and at least one image are required. Each
+      repository_name/tag target must be unique within the project.
+    quiet: true
+  vars:
+    harbor_image_batch_targets: >-
+      {%- set targets = [] -%}
+      {%- for image in harbor_images -%}
+        {%- set _ = targets.append((image.repository_name | default('')) ~ ':' ~ (image.tag | default('latest'))) -%}
+      {%- endfor -%}
+      {{ targets }}
+
+- name: Verify Docker is available on Harbor VM
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+  become: true
+  changed_when: false
+
+- name: Log in to local Harbor registry
+  ansible.builtin.command:
+    argv:
+      - docker
+      - login
+      - "{{ harbor_local_registry }}"
+      - --username
+      - "{{ harbor_username }}"
+      - --password-stdin
+    stdin: "{{ harbor_password }}"
+  become: true
+  changed_when: false
+
+- name: Initialize Harbor image results
+  ansible.builtin.set_fact:
+    harbor_added_images: []
+
+- name: Push requested images into Harbor
+  ansible.builtin.include_tasks: push-image.yml
+  loop: "{{ harbor_images }}"
+  loop_control:
+    loop_var: harbor_image
+    label: "{{ harbor_image.repository_name | default(harbor_image.source_image | default('image')) }}"
+
+- name: Log out from local Harbor registry
+  ansible.builtin.command:
+    argv:
+      - docker
+      - logout
+      - "{{ harbor_local_registry }}"
+  become: true
+  changed_when: false
+
+- name: Set Harbor image push result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: add_images
+      project_name: "{{ harbor_project_name }}"
+      image_count: "{{ harbor_added_images | length }}"
+      images: "{{ harbor_added_images }}"
+      message: "Harbor images pushed successfully"

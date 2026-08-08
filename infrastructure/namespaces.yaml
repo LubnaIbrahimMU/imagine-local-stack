@@ -1,0 +1,37 @@
+# ==============================================================================
+# Declarative Namespaces for MyPro Platform Stack
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harbor
+  labels:
+    app.kubernetes.io/part-of: mypro-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+  labels:
+    app.kubernetes.io/part-of: mypro-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    app.kubernetes.io/part-of: mypro-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: mypro-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/part-of: mypro-platform

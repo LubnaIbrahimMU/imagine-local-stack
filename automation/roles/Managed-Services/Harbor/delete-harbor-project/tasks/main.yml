@@ -1,0 +1,145 @@
+---
+- name: Validate Harbor project deletion input
+  ansible.builtin.assert:
+    that:
+      - harbor_local_url | length > 0
+      - harbor_username | length > 0
+      - harbor_password | length > 0
+      - harbor_project_name is match('^[a-z0-9][a-z0-9._-]*$')
+    fail_msg: >-
+      local_harbor_url, Harbor credentials, and a valid lowercase project_name
+      are required.
+    quiet: true
+
+- name: Check selected Harbor project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 404
+  register: harbor_project_before_delete
+  changed_when: false
+
+- name: Fetch Harbor project repository pages before cascade deletion
+  ansible.builtin.uri:
+    url: >-
+      {{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}/repositories?page={{ item }}&page_size=100
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: >-
+    {{
+      range(
+        1,
+        (
+          ((harbor_project_before_delete.json.repo_count | default(0) | int) + 99) // 100
+        ) + 1
+      ) | list
+    }}
+  loop_control:
+    label: "repository page {{ item }}"
+  register: harbor_project_repository_pages
+  changed_when: false
+  when:
+    - harbor_project_before_delete.status == 200
+    - harbor_delete_project_repositories | bool
+    - harbor_project_before_delete.json.repo_count | default(0) | int > 0
+
+- name: Normalize Harbor project repositories for deletion
+  ansible.builtin.set_fact:
+    harbor_project_repositories: >-
+      {{
+        harbor_project_repository_pages.results
+        | default([])
+        | map(attribute='json')
+        | select('defined')
+        | list
+        | flatten
+      }}
+  when: harbor_delete_project_repositories | bool
+
+- name: Delete repositories before Harbor project deletion
+  ansible.builtin.uri:
+    url: >-
+      {{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}/repositories/{{ (item.name | regex_replace('^' ~ (harbor_project_name | regex_escape) ~ '/', '') | replace('/', '%252F')) }}
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code:
+      - 200
+      - 404
+  loop: "{{ harbor_project_repositories | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('repository') }}"
+  when: harbor_delete_project_repositories | bool
+
+- name: Delete selected Harbor project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 202
+      - 204
+      - 400
+      - 403
+      - 409
+      - 412
+  register: harbor_project_delete_request
+  when: harbor_project_before_delete.status == 200
+
+- name: Fail with Harbor project deletion reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected deletion of project '{{ harbor_project_name }}'
+      with HTTP {{ harbor_project_delete_request.status }}:
+      {{
+        harbor_project_delete_request.json
+        | default(harbor_project_delete_request.content | default('No response body'))
+      }}
+  when:
+    - harbor_project_before_delete.status == 200
+    - harbor_project_delete_request.status not in [200, 202, 204]
+
+- name: Verify selected Harbor project was deleted
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code: 404
+  changed_when: false
+
+- name: Set Harbor project deletion result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: delete_project
+      local_harbor_url: "{{ harbor_local_url }}"
+      project_name: "{{ harbor_project_name }}"
+      deleted: "{{ harbor_project_before_delete.status == 200 }}"
+      message: >-
+        {{
+          'Harbor project deleted successfully'
+          if harbor_project_before_delete.status == 200
+          else 'Harbor project no longer exists'
+        }}

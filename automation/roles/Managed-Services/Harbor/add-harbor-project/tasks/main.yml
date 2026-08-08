@@ -1,0 +1,81 @@
+---
+- name: Validate Harbor project inputs
+  ansible.builtin.assert:
+    that:
+      - harbor_project_name is match('^[a-z0-9][a-z0-9._-]*$')
+      - harbor_username | length > 0
+      - harbor_password | length > 0
+    fail_msg: >-
+      project_name must use lowercase letters, numbers, dots, underscores, or
+      hyphens, and Harbor credentials are required.
+    quiet: true
+
+- name: Check whether Harbor project exists
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 404
+  register: harbor_existing_project
+  changed_when: false
+
+- name: Create Harbor project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects"
+    method: POST
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      project_name: "{{ harbor_project_name }}"
+      public: "{{ harbor_project_public | bool }}"
+      metadata:
+        public: "{{ harbor_project_public | bool | ternary('true', 'false') }}"
+    status_code: 201
+  when: harbor_existing_project.status == 404
+
+- name: Apply requested visibility to existing Harbor project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: PUT
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      metadata:
+        public: "{{ harbor_project_public | bool | ternary('true', 'false') }}"
+    status_code: 200
+  when: harbor_existing_project.status == 200
+
+- name: Verify Harbor project configuration
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_project_result
+  changed_when: false
+
+- name: Set Harbor project result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: add_project
+      project_name: "{{ harbor_project_name }}"
+      public: "{{ harbor_project_public | bool }}"
+      created: "{{ harbor_existing_project.status == 404 }}"
+      message: "Harbor project is ready"

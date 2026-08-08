@@ -1,0 +1,75 @@
+---
+- name: Validate Harbor image input
+  ansible.builtin.assert:
+    that:
+      - (harbor_image.source_image | default('') | length) > 0
+      - (harbor_image.repository_name | default('')) is match('^[a-z0-9][a-z0-9._/-]*$')
+      - (harbor_image.tag | default('latest')) is match('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')
+    fail_msg: >-
+      Every image requires a valid source_image, repository_name, and optional tag.
+    quiet: true
+
+- name: Pull source image on Harbor VM
+  ansible.builtin.command:
+    argv:
+      - docker
+      - pull
+      - "{{ harbor_image.source_image }}"
+  become: true
+  register: harbor_source_pull
+  changed_when: "'Downloaded newer image' in (harbor_source_pull.stdout | default(''))"
+
+- name: Resolve target Harbor image reference
+  ansible.builtin.set_fact:
+    harbor_target_image: >-
+      {{ harbor_local_registry }}/{{ harbor_project_name }}/{{ harbor_image.repository_name }}:{{ harbor_image.tag | default('latest') }}
+
+- name: Tag source image for Harbor
+  ansible.builtin.command:
+    argv:
+      - docker
+      - tag
+      - "{{ harbor_image.source_image }}"
+      - "{{ harbor_target_image }}"
+  become: true
+  changed_when: true
+
+- name: Push image to Harbor
+  ansible.builtin.command:
+    argv:
+      - docker
+      - push
+      - "{{ harbor_target_image }}"
+  become: true
+  register: harbor_image_push
+  changed_when: true
+
+- name: Verify pushed Harbor artifact
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_project_name | urlencode }}/repositories/{{ harbor_image.repository_name | replace('/', '%252F') }}/artifacts/{{ harbor_image.tag | default('latest') | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_pushed_artifact
+  changed_when: false
+
+- name: Append Harbor image result
+  ansible.builtin.set_fact:
+    harbor_added_images: >-
+      {{
+        harbor_added_images
+        + [
+            {
+              'project_name': harbor_project_name,
+              'repository_name': harbor_image.repository_name,
+              'tag': harbor_image.tag | default('latest'),
+              'digest': harbor_pushed_artifact.json.digest | default(''),
+              'source_image': harbor_image.source_image,
+              'target_image': harbor_target_image
+            }
+          ]
+      }}

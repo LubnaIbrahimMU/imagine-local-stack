@@ -1,0 +1,3 @@
+---
+harbor_selected_username: "{{ harbor_config.user_username | default('') }}"
+harbor_new_user_password: "{{ harbor_config.new_password | default('') }}"

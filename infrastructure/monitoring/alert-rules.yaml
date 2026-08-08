@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mypro-alert-rules
+  namespace: monitoring
+  labels:
+    role: alert-rules
+spec:
+  groups:
+    - name: mypro.rules
+      rules:
+        - alert: HighNodeCPUUsage
+          expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High Node CPU Usage on {{ $labels.instance }}"
+            description: "Node CPU utilization has exceeded 85% for 5 minutes."
+
+        - alert: ContainerMemoryThrottling
+          expr: (sum by (pod, container) (rate(container_cpu_cfs_throttled_periods_total[5m])) / sum by (pod, container) (rate(container_cpu_cfs_periods_total[5m]))) * 100 > 30
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container CPU throttling on pod {{ $labels.pod }}"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} CPU throttling is over 30%."
+
+        - alert: DatabasePrimaryDown
+          expr: kube_pod_status_ready{condition="true", pod=~".*-db-primary-0"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Database Primary Pod is Down"
+            description: "Primary MySQL pod is unreachable. Failover to Standby initiated."

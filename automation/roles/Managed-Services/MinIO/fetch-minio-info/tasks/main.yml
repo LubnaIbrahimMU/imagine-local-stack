@@ -1,0 +1,51 @@
+---
+- name: Set facts for MinIO fetch info
+  ansible.builtin.set_fact:
+    m_root_user: "{{ root_user | default(cg_spec.root_user | default(minio_root_user_input | default('admin', true), true), true) }}"
+    m_root_pass: "{{ root_password | default(cg_spec.root_password | default(cg_spec.service_config.root_password | default(minio_root_password_input | default('MinioAdminPassword123', true), true), true), true) }}"
+    m_endpoint: "{{ endpoint | default('http://127.0.0.1:9000', true) }}"
+    m_container: "{{ minio_container | default('cloudgate_managed_minio', true) }}"
+    m_temp_dir: "{{ temp_dir | default(cg_spec.temp_dir | default('/temp', true), true) }}"
+
+- name: Fetch MinIO details via Docker container or Kubernetes pod
+  ansible.builtin.shell: |
+    if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ m_container }}$"; then
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || true
+      echo "===BUCKETS===" && docker exec {{ m_container }} mc ls --json local 2>/dev/null || true
+      echo "===USERS===" && docker exec {{ m_container }} mc admin user list --json local 2>/dev/null || true
+      echo "===GROUPS===" && docker exec {{ m_container }} mc admin group list --json local 2>/dev/null || true
+      echo "===POLICIES===" && docker exec {{ m_container }} mc admin policy list --json local 2>/dev/null || true
+    elif command -v kubectl &>/dev/null; then
+      POD_NAME=$(kubectl get pod -n minio -l app=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}' 2>/dev/null || kubectl get pod -n minio -l app.kubernetes.io/name=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}')
+      if [ -n "$POD_NAME" ]; then
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || true
+        echo "===BUCKETS===" && kubectl exec -n minio "$POD_NAME" -- mc ls --json local 2>/dev/null || true
+        echo "===USERS===" && kubectl exec -n minio "$POD_NAME" -- mc admin user list --json local 2>/dev/null || true
+        echo "===GROUPS===" && kubectl exec -n minio "$POD_NAME" -- mc admin group list --json local 2>/dev/null || true
+        echo "===POLICIES===" && kubectl exec -n minio "$POD_NAME" -- mc admin policy list --json local 2>/dev/null || true
+      fi
+    fi
+  register: raw_info_res
+  changed_when: false
+
+- name: Ensure target temp directory exists on localhost
+  ansible.builtin.file:
+    path: "{{ m_temp_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Save raw MinIO info output to {{ m_temp_dir }}/MinioInfo.json
+  ansible.builtin.copy:
+    content: "{{ raw_info_res.stdout | default('') }}"
+    dest: "{{ m_temp_dir }}/MinioInfo.json"
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Set fact for fetch_info result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      action: fetch_info
+      info: "{{ raw_info_res.stdout | default('') }}"
+      message: "Fetched MinIO configuration and saved to {{ m_temp_dir }}/MinioInfo.json"

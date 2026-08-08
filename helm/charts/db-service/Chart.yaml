@@ -1,0 +1,6 @@
+apiVersion: v2
+name: db-service
+description: Helm chart for MySQL Primary and Standby StatefulSets with Automated CronJob Backup
+type: application
+version: 2.0.0
+appVersion: "8.0"

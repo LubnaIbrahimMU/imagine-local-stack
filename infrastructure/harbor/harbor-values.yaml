@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=none
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    secretName: aliien-uk-tls
+  ingress:
+    hosts:
+      core: vharbor.aliien.uk
+    controller: default
+    className: nginx
+
+externalURL: https://vharbor.aliien.uk
+
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      storageClass: local-storage
+      size: 1Gi
+    chartmuseum:
+      storageClass: local-storage
+      size: 500Mi
+    jobservice:
+      storageClass: local-storage
+      size: 500Mi
+    database:
+      storageClass: local-storage
+      size: 500Mi
+    redis:
+      storageClass: local-storage
+      size: 256Mi

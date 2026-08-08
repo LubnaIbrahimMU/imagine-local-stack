@@ -1,0 +1,514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cloudgate/services/common/managed-harbor/operations/v1",
+  "title": "CloudGate Managed Harbor Operations",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "provisioning_spec"
+  ],
+  "properties": {
+    "temp_dir": {
+      "type": "string",
+      "minLength": 1,
+      "default": "/temp"
+    },
+    "provisioning_spec": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "resource_schema_version",
+        "service_profile",
+        "metadata",
+        "action_key",
+        "service_config",
+        "credentials",
+        "resources"
+      ],
+      "properties": {
+        "resource_schema_version": {
+          "const": 1
+        },
+        "service_profile": {
+          "enum": [
+            "service-subscription-edit@v1",
+            "managed-harbor-operations@v1"
+          ]
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "subscription_id",
+            "vendor_id",
+            "service_key_id"
+          ],
+          "properties": {
+            "subscription_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "vendor_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "service_key_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "action_key": {
+          "enum": [
+            "fetch_harbor",
+            "fetch_images",
+            "fetch_users",
+            "delete_image",
+            "delete_project",
+            "add_project",
+            "add_image",
+            "add_user",
+            "remove_user_from_project",
+            "change_user_role",
+            "reset_user_password",
+            "delete_user"
+          ]
+        },
+        "temp_dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "/temp"
+        },
+        "credentials": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "username",
+            "password"
+          ],
+          "properties": {
+            "username": {
+              "type": "string",
+              "minLength": 1
+            },
+            "password": {
+              "type": "string",
+              "minLength": 1,
+              "writeOnly": true
+            }
+          }
+        },
+        "service_config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "local_harbor_url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            "api_version": {
+              "type": "string",
+              "pattern": "^v[0-9]+\\.[0-9]+$",
+              "default": "v2.0"
+            },
+            "validate_certs": {
+              "type": "boolean",
+              "default": true
+            },
+            "page_size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            },
+            "project_name": {
+              "type": "string"
+            },
+            "project_public": {
+              "type": "boolean",
+              "default": false
+            },
+            "user_username": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+            },
+            "user_password": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,128}$",
+              "writeOnly": true
+            },
+            "new_password": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,128}$",
+              "writeOnly": true
+            },
+            "user_email": {
+              "type": "string",
+              "format": "email"
+            },
+            "user_realname": {
+              "type": "string"
+            },
+            "user_comment": {
+              "type": "string"
+            },
+            "project_role": {
+              "enum": [
+                "project_admin",
+                "developer",
+                "guest",
+                "maintainer",
+                "limited_guest"
+              ],
+              "default": "developer"
+            },
+            "repository_name": {
+              "type": "string"
+            },
+            "source_image": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$",
+              "default": "latest"
+            },
+            "local_registry": {
+              "type": "string",
+              "minLength": 1,
+              "default": "harbor.example.com"
+            },
+            "images": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "source_image",
+                  "repository_name"
+                ],
+                "properties": {
+                  "source_image": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "repository_name": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9._/-]*$"
+                  },
+                  "tag": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$",
+                    "default": "latest"
+                  }
+                }
+              }
+            },
+            "delete_repository": {
+              "type": "boolean",
+              "default": false
+            },
+            "delete_repositories": {
+              "type": "boolean",
+              "default": true
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[a-fA-F0-9]{64}$"
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "VM"
+          ],
+          "properties": {
+            "VM": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "publicIP"
+                ],
+                "properties": {
+                  "publicIP": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "cloudID": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "reset_user_password"
+              }
+            },
+            "required": ["action_key"]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": ["user_username", "new_password"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "enum": [
+                  "remove_user_from_project",
+                  "change_user_role"
+                ]
+              }
+            },
+            "required": ["action_key"]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": ["user_username", "project_name"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "change_user_role"
+              }
+            },
+            "required": ["action_key"]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": ["project_role"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "delete_user"
+              }
+            },
+            "required": ["action_key"]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": ["user_username"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "add_user"
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": [
+                  "project_name",
+                  "user_username",
+                  "user_password",
+                  "user_email",
+                  "project_role"
+                ],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "delete_project"
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": [
+                  "project_name",
+                  "delete_repositories"
+                ],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "enum": [
+                  "add_project",
+                  "add_image"
+                ]
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": [
+                  "project_name",
+                  "project_public"
+                ],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "add_image"
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": [
+                  "images",
+                  "local_registry"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "enum": [
+                  "fetch_harbor",
+                  "fetch_images",
+                  "fetch_users"
+                ]
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "repository_name"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "digest"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_key": {
+                "const": "delete_image"
+              }
+            },
+            "required": [
+              "action_key"
+            ]
+          },
+          "then": {
+            "properties": {
+              "service_config": {
+                "required": [
+                  "project_name",
+                  "repository_name",
+                  "digest"
+                ],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "repository_name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

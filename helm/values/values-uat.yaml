@@ -1,0 +1,28 @@
+# Staging / UAT Environment Configuration
+frontend-service:
+  replicaCount: 2
+  ingress:
+    enabled: true
+    host: app.uat.mypro.local
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+backend-service:
+  replicaCount: 2
+  vault:
+    enabled: true
+    secretPath: secret/data/uat/database
+  env:
+    logLevel: INFO
+
+db-service:
+  persistence:
+    size: 5Gi
+
+redis-service:
+  replicaCount: 1

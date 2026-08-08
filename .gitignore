@@ -1,0 +1,26 @@
+# Secrets, keys, and credentials
+*.key
+*.pem
+*.crt
+vault-keys.json
+vault-keys.txt
+secrets.json
+secrets.env
+cloudflare.ini
+*.ini
+.env
+.env.local
+
+
+# Helm dependencies
+charts/*.tgz
+.helm/
+
+# Temporary and log files
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+
+# Docker build artifacts
+.docker/

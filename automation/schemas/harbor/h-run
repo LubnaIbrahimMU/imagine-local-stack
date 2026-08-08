@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+TEMP_DIR="${PROJECT_ROOT}/temp"
+
+mkdir -p "${TEMP_DIR}"
+
+action="${1:-}"
+
+run_operation() {
+  local payload_json="$1"
+  docker run --rm \
+    --net=host \
+    -u 0 \
+    -e HOST_UID="$(id -u)" \
+    -e HOST_GID="$(id -g)" \
+    -v /etc/hosts:/etc/hosts:ro \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /usr/bin/docker:/usr/bin/docker \
+    -v "${HOME}/.kube":/home/ansible/.kube:ro \
+    -v "${HOME}/.minikube":"${HOME}/.minikube":ro \
+    -v "${PROJECT_ROOT}/automation":/playbook-template:ro \
+    -v "${TEMP_DIR}":/temp \
+    -v "${SCRIPT_DIR}":/harbor-input:ro \
+    -w /playbook-template \
+    942005246233.dkr.ecr.us-east-1.amazonaws.com/cloudgate/ansible:dev_f22b61c \
+    sh -lc "
+      install -d -o 1001 -g 1001 -m 700 /tmp/ansible-tmp &&
+      chmod 666 /var/run/docker.sock 2>/dev/null || true &&
+      cp -r /home/ansible/.kube /tmp/kube-config 2>/dev/null || true &&
+      cp -r \"${HOME}/.minikube\" /tmp/minikube-certs 2>/dev/null || true &&
+      chown -R 1001:1001 /tmp/kube-config /tmp/minikube-certs /temp 2>/dev/null || true &&
+      chmod -R 755 /tmp/kube-config /tmp/minikube-certs 2>/dev/null || true &&
+      chmod 644 /tmp/minikube-certs/profiles/minikube/client.key 2>/dev/null || true &&
+      sed -i \"s|${HOME}/.minikube|/tmp/minikube-certs|g\" /tmp/kube-config/config 2>/dev/null || true &&
+      sudo -u ansible env \
+        HOME=/home/ansible \
+        KUBECONFIG=/tmp/kube-config/config \
+        ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
+        ansible-playbook \
+          managedservices/harbor/harbor-operations.yml \
+          -i \"localhost,\" \
+          -e \"ansible_connection=local\" \
+          --tags \"operations\" \
+          --extra-vars @/harbor-input/$payload_json \
+          -vv
+      status=\$?
+      chown -R \"\$HOST_UID:\$HOST_GID\" /temp
+      exit \"\$status\"
+    "
+}
+
+case "$action" in
+  create)
+    run_operation "schema.json"
+    ;;
+
+  add-user)
+    run_operation "add-user.json"
+    ;;
+
+  delete-user)
+    run_operation "delete-user.json"
+    ;;
+
+  add-project)
+    run_operation "add-project.json"
+    ;;
+
+  delete-project)
+    run_operation "delete-project.json"
+    ;;
+
+  change-user-role)
+    run_operation "change-user-role.json"
+    ;;
+
+  remove-user-from-project)
+    run_operation "remove-user-from-project.json"
+    ;;
+
+  reset-user-password)
+    run_operation "reset-user-password.json"
+    ;;
+
+  fetch-harbor)
+    run_operation "fetch-harbor.json"
+    ;;
+
+  fetch-users)
+    run_operation "fetch-users.json"
+    ;;
+
+  fetch-images)
+    run_operation "fetch-images.json"
+    ;;
+
+  add-image)
+    run_operation "add-image.json"
+    ;;
+
+  delete-image)
+    run_operation "delete-image.json"
+    ;;
+
+  *)
+    echo "Usage: $0 {create|add-user|delete-user|add-project|delete-project|change-user-role|remove-user-from-project|reset-user-password|fetch-harbor|fetch-users|fetch-images|add-image|delete-image}" >&2
+    exit 2
+    ;;
+esac

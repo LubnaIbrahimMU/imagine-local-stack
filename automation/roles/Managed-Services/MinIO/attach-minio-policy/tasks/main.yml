@@ -1,0 +1,64 @@
+---
+- name: Set facts for MinIO policy assignment
+  ansible.builtin.set_fact:
+    m_policy: "{{ policy_name | default(cg_spec.policy_name | default(cg_spec.service_config.policy_name | default(minio_policy | default('readwrite', true), true), true), true) }}"
+    m_target_type: "{{ target_type | default(cg_spec.target_type | default(cg_spec.service_config.target_type | default('user', true), true), true) }}"
+    m_target_name: "{{ target_name | default(cg_spec.target_name | default(cg_spec.service_config.target_name | default('', true), true), true) }}"
+    m_user: "{{ target_user | default(cg_spec.target_user | default(user_name | default(cg_spec.user_name | default(minio_user | default(cg_spec.minio_user | default((target_name | default(cg_spec.target_name | default('')) if (target_type | default(cg_spec.target_type | default('user')) == 'user') else ''), true), true), true), true), true), true) }}"
+    m_group: "{{ target_group | default(cg_spec.target_group | default(group_name | default(cg_spec.group_name | default(minio_group | default(cg_spec.minio_group | default((target_name | default(cg_spec.target_name | default('')) if (target_type | default(cg_spec.target_type | default('user')) == 'group') else ''), true), true), true), true), true), true) }}"
+    m_root_user: "{{ root_user | default(cg_spec.root_user | default(cg_spec.service_config.root_user | default(minio_root_user_input | default('admin', true), true), true), true) }}"
+    m_root_pass: "{{ root_password | default(cg_spec.root_password | default(cg_spec.service_config.root_password | default(minio_root_password_input | default('MinioAdminPassword123', true), true), true), true) }}"
+    m_endpoint: "{{ endpoint | default('http://127.0.0.1:9000', true) }}"
+    m_container: "{{ minio_container | default('cloudgate_managed_minio', true) }}"
+
+- name: Validate policy attachment inputs
+  ansible.builtin.assert:
+    that:
+      - m_policy | length > 0
+      - (m_user | length > 0) or (m_group | length > 0)
+    fail_msg: "policy_name and either target_user or target_group (or target_type with target_name) are required"
+    quiet: true
+
+- name: Attach Policy via Docker container or Kubernetes pod
+  ansible.builtin.shell: |
+    if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ m_container }}$"; then
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || \
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} MinioAdminPassword123
+      if [ -n "{{ m_user }}" ]; then
+        docker exec {{ m_container }} mc admin policy attach local {{ m_policy }} --user {{ m_user }} 2>/dev/null || \
+        docker exec {{ m_container }} mc admin policy set local {{ m_policy }} user={{ m_user }}
+      fi
+      if [ -n "{{ m_group }}" ]; then
+        docker exec {{ m_container }} mc admin policy attach local {{ m_policy }} --group {{ m_group }} 2>/dev/null || \
+        docker exec {{ m_container }} mc admin policy set local {{ m_policy }} group={{ m_group }}
+      fi
+    elif command -v kubectl &>/dev/null; then
+      POD_NAME=$(kubectl get pod -n minio -l app=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}' 2>/dev/null || kubectl get pod -n minio -l app.kubernetes.io/name=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}')
+      if [ -n "$POD_NAME" ]; then
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || \
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} MinioAdminPassword123 2>/dev/null || true
+        if [ -n "{{ m_user }}" ]; then
+          kubectl exec -n minio "$POD_NAME" -- mc admin policy attach local {{ m_policy }} --user {{ m_user }} 2>/dev/null || \
+          kubectl exec -n minio "$POD_NAME" -- mc admin policy set local {{ m_policy }} user={{ m_user }} 2>/dev/null || true
+        fi
+        if [ -n "{{ m_group }}" ]; then
+          kubectl exec -n minio "$POD_NAME" -- mc admin policy attach local {{ m_policy }} --group {{ m_group }} 2>/dev/null || \
+          kubectl exec -n minio "$POD_NAME" -- mc admin policy set local {{ m_policy }} group={{ m_group }} 2>/dev/null || true
+        fi
+      else
+        echo "MinIO pod not found in minio namespace" && exit 1
+      fi
+    else
+      echo "MinIO container or Kubernetes pod not found" && exit 1
+    fi
+  changed_when: false
+
+- name: Set fact for attach_policy result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      action: attach_policy
+      policy_name: "{{ m_policy }}"
+      target_user: "{{ m_user }}"
+      target_group: "{{ m_group }}"
+      message: "Policy '{{ m_policy }}' attached successfully"

@@ -1,0 +1,28 @@
+# Development Environment Configuration
+frontend-service:
+  replicaCount: 1
+  ingress:
+    enabled: true
+    host: app.dev.mypro.local
+  resources:
+    limits:
+      cpu: 150m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+backend-service:
+  replicaCount: 1
+  vault:
+    enabled: true
+    secretPath: secret/data/dev/database
+  env:
+    logLevel: DEBUG
+
+db-service:
+  persistence:
+    size: 2Gi
+
+redis-service:
+  replicaCount: 1

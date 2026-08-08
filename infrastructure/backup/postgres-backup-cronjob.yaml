@@ -1,0 +1,54 @@
+# ==============================================================================
+# Automated PostgreSQL Backup CronJob (Local Host Path & MinIO Storage)
+# Dumps database, compresses, and saves to /mnt/data/backups on the local host
+# ==============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-db-backup
+  namespace: default
+spec:
+  schedule: "0 2 * * *" # Daily at 2:00 AM
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: postgres-backup
+              image: postgres:15-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  BACKUP_FILE="/backups/db-backup-$(date +%Y%m%d_%H%M%S).sql.gz"
+                  echo "[+] Starting PostgreSQL Backup..."
+                  
+                  # Dump database and write directly to host persistent volume
+                  PGPASSWORD="${POSTGRES_PASSWORD}" pg_dumpall -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" | gzip > "${BACKUP_FILE}"
+                  
+                  echo "[+] Backup successfully saved to local host disk: ${BACKUP_FILE}"
+                  echo "[+] Current backup size: $(du -h ${BACKUP_FILE} | cut -f1)"
+                  
+                  # Retain only last 7 days of backups to save disk space
+                  find /backups -type f -name "db-backup-*.sql.gz" -mtime +7 -delete
+              env:
+                - name: POSTGRES_HOST
+                  value: "postgres.default.svc.cluster.local"
+                - name: POSTGRES_USER
+                  value: "postgres"
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: password
+              volumeMounts:
+                - name: backup-volume
+                  mountPath: /backups
+          volumes:
+            - name: backup-volume
+              persistentVolumeClaim:
+                claimName: backup-local-pvc
+          restartPolicy: OnFailure

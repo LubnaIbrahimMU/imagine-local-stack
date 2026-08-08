@@ -1,0 +1,436 @@
+---
+- name: Validate Harbor image discovery inputs
+  ansible.builtin.assert:
+    that:
+      - harbor_local_url | length > 0
+      - harbor_username | length > 0
+      - harbor_password | length > 0
+      - harbor_page_size | int >= 1
+      - harbor_page_size | int <= 100
+    fail_msg: >-
+      local_harbor_url, harbor_username, and harbor_password are required.
+      page_size must be between 1 and 100.
+    quiet: true
+
+- name: Verify Harbor API health
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/health"
+    method: GET
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_health_result
+  changed_when: false
+
+- name: Fetch first authorized Harbor project page
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page=1&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    return_content: true
+    status_code: 200
+  register: harbor_project_first_page
+  changed_when: false
+
+- name: Resolve Harbor project page count
+  ansible.builtin.set_fact:
+    harbor_project_total: >-
+      {{
+        harbor_project_first_page.x_total_count
+        | default(harbor_project_first_page.json | default([]) | length)
+        | int
+      }}
+    harbor_projects: "{{ harbor_project_first_page.json | default([]) }}"
+    harbor_project_page_count: >-
+      {{
+        (
+          (
+            harbor_project_first_page.x_total_count
+            | default(harbor_project_first_page.json | default([]) | length)
+            | int
+          ) + (harbor_page_size | int) - 1
+        ) // (harbor_page_size | int)
+      }}
+
+- name: Fetch remaining authorized Harbor project pages
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page={{ item }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    return_content: true
+    status_code: 200
+  loop: "{{ range(2, (harbor_project_page_count | int) + 1) | list }}"
+  loop_control:
+    label: "project page {{ item }}"
+  register: harbor_project_remaining_pages
+  changed_when: false
+
+- name: Merge authorized Harbor project pages
+  ansible.builtin.set_fact:
+    harbor_projects: >-
+      {{
+        harbor_projects
+        + (
+            harbor_project_remaining_pages.results
+            | default([])
+            | map(attribute='json')
+            | select('defined')
+            | list
+            | flatten
+          )
+      }}
+
+- name: Apply optional Harbor project filter
+  ansible.builtin.set_fact:
+    harbor_projects: >-
+      {{
+        harbor_projects
+        if harbor_project_filter | length == 0
+        else (
+          harbor_projects
+          | selectattr('name', 'equalto', harbor_project_filter)
+          | list
+        )
+      }}
+
+- name: Build Harbor repository page requests
+  ansible.builtin.set_fact:
+    harbor_repository_requests: >-
+      {%- set requests = [] -%}
+      {%- for project in (harbor_projects | default([])) -%}
+        {%- set repository_count = project.repo_count | default(0) | int -%}
+        {%- set page_count = [1, ((repository_count + (harbor_page_size | int) - 1) // (harbor_page_size | int))] | max -%}
+        {%- for page in range(1, page_count + 1) -%}
+          {%- set _ = requests.append({
+            'project_name': project.name,
+            'page': page
+          }) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ requests }}
+
+- name: Fetch repositories from authorized Harbor projects
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.project_name | urlencode }}/repositories?page={{ item.page }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    return_content: true
+    status_code: 200
+  loop: "{{ harbor_repository_requests }}"
+  loop_control:
+    label: "{{ item.project_name }} repository page {{ item.page }}"
+  register: harbor_repository_page_results
+  changed_when: false
+
+- name: Merge authorized Harbor repositories
+  ansible.builtin.set_fact:
+    harbor_repositories: >-
+      {{
+        harbor_repository_page_results.results
+        | default([])
+        | map(attribute='json')
+        | select('defined')
+        | list
+        | flatten
+      }}
+
+- name: Build Harbor artifact page requests
+  ansible.builtin.set_fact:
+    harbor_artifact_requests: >-
+      {%- set requests = [] -%}
+      {%- for repository in (harbor_repositories | default([])) -%}
+        {%- set full_name = repository.name | default('') -%}
+        {%- set name_parts = full_name.split('/') -%}
+        {%- if name_parts | length > 1 -%}
+          {%- set project_name = name_parts[0] -%}
+          {%- set repository_name = name_parts[1:] | join('/') -%}
+          {%- set artifact_count = repository.artifact_count | default(0) | int -%}
+          {%- set page_count = [1, ((artifact_count + (harbor_page_size | int) - 1) // (harbor_page_size | int))] | max -%}
+          {%- for page in range(1, page_count + 1) -%}
+            {%- set _ = requests.append({
+              'project_name': project_name,
+              'repository_name': repository_name,
+              'repository_api_name': repository_name | replace('/', '%252F'),
+              'page': page
+            }) -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ requests }}
+
+- name: Fetch Harbor artifacts
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.project_name | urlencode }}/repositories/{{ item.repository_api_name }}/artifacts?page={{ item.page }}&page_size={{ harbor_page_size }}&with_tag=true&with_label=true&with_scan_overview=true"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    return_content: true
+    status_code: 200
+  loop: "{{ harbor_artifact_requests }}"
+  loop_control:
+    label: "{{ item.project_name }}/{{ item.repository_name }} page {{ item.page }}"
+  register: harbor_artifact_page_results
+  changed_when: false
+
+- name: Normalize Harbor images for backend selection
+  ansible.builtin.set_fact:
+    fetched_harbor_images: >-
+      {%- set images = [] -%}
+      {%- for result in (harbor_artifact_page_results.results | default([])) -%}
+        {%- for artifact in (result.json | default([])) -%}
+          {%- set tags = artifact.tags | default([]) | map(attribute='name') | list -%}
+          {%- set _ = images.append({
+            'project_name': result.item.project_name,
+            'repository_name': result.item.repository_name,
+            'digest': artifact.digest | default(''),
+            'tags': tags,
+            'media_type': artifact.media_type | default(''),
+            'type': artifact.type | default(''),
+            'size': artifact.size | default(0),
+            'push_time': artifact.push_time | default(''),
+            'pull_time': artifact.pull_time | default(''),
+            'scan_overview': artifact.scan_overview | default({})
+          }) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ images }}
+
+- name: Fetch first Harbor user page
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users?page=1&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 400
+      - 401
+      - 403
+      - 404
+      - 500
+  register: harbor_user_first_page
+  changed_when: false
+
+- name: Fail with sanitized Harbor user discovery reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected user discovery with HTTP
+      {{ harbor_user_first_page.status }}:
+      {{
+        harbor_user_first_page.json
+        | default(harbor_user_first_page.content | default('No response body'))
+      }}
+  when: harbor_user_first_page.status | int != 200
+
+- name: Fetch remaining Harbor user pages
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users?page={{ item }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: >-
+    {{
+      range(
+        2,
+        (((harbor_user_first_page.x_total_count | default(harbor_user_first_page.json | length) | int) + (harbor_page_size | int) - 1) // (harbor_page_size | int)) + 1
+      ) | list
+    }}
+  register: harbor_user_remaining_pages
+  changed_when: false
+
+- name: Merge Harbor users
+  ansible.builtin.set_fact:
+    harbor_users: >-
+      {{
+        harbor_user_first_page.json | default([])
+        + (harbor_user_remaining_pages.results | default([]) | map(attribute='json') | select('defined') | list | flatten)
+      }}
+
+- name: Fetch first Harbor project page for user assignments
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page=1&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_user_project_first_page
+  changed_when: false
+
+- name: Fetch remaining Harbor project pages for user assignments
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects?page={{ item }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: >-
+    {{
+      range(
+        2,
+        (((harbor_user_project_first_page.x_total_count | default(harbor_user_project_first_page.json | length) | int) + (harbor_page_size | int) - 1) // (harbor_page_size | int)) + 1
+      ) | list
+    }}
+  register: harbor_user_project_remaining_pages
+  changed_when: false
+
+- name: Merge Harbor projects for user assignments
+  ansible.builtin.set_fact:
+    harbor_user_projects: >-
+      {{
+        harbor_user_project_first_page.json | default([])
+        + (harbor_user_project_remaining_pages.results | default([]) | map(attribute='json') | select('defined') | list | flatten)
+      }}
+
+- name: Fetch first membership page for every Harbor project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.name | urlencode }}/members?page=1&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: "{{ harbor_user_projects }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: harbor_project_member_first_pages
+  changed_when: false
+
+- name: Build remaining Harbor membership page requests
+  ansible.builtin.set_fact:
+    harbor_member_page_requests: >-
+      {%- set requests = [] -%}
+      {%- for result in (harbor_project_member_first_pages.results | default([])) -%}
+        {%- set total = result.x_total_count | default(result.json | default([]) | length) | int -%}
+        {%- set pages = (total + (harbor_page_size | int) - 1) // (harbor_page_size | int) -%}
+        {%- for page in range(2, pages + 1) -%}
+          {%- set _ = requests.append({'project_name': result.item.name, 'page': page}) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ requests }}
+
+- name: Fetch remaining Harbor membership pages
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ item.project_name | urlencode }}/members?page={{ item.page }}&page_size={{ harbor_page_size }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  loop: "{{ harbor_member_page_requests }}"
+  register: harbor_project_member_remaining_pages
+  changed_when: false
+
+- name: Normalize Harbor project memberships
+  ansible.builtin.set_fact:
+    harbor_user_memberships: >-
+      {%- set memberships = [] -%}
+      {%- for result in (harbor_project_member_first_pages.results | default([])) -%}
+        {%- for member in (result.json | default([])) -%}
+          {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+          {%- if member_username | length > 0 -%}
+            {%- set _ = memberships.append({'username': member_username, 'project_name': result.item.name, 'member_id': member.id, 'role_id': member.role_id | int, 'role': member.role_name | default(harbor_user_role_names[member.role_id | int] | default('unknown'), true)}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {%- for result in (harbor_project_member_remaining_pages.results | default([])) -%}
+        {%- for member in (result.json | default([])) -%}
+          {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+          {%- if member_username | length > 0 -%}
+            {%- set _ = memberships.append({'username': member_username, 'project_name': result.item.project_name, 'member_id': member.id, 'role_id': member.role_id | int, 'role': member.role_name | default(harbor_user_role_names[member.role_id | int] | default('unknown'), true)}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ memberships }}
+
+- name: Join Harbor users with project assignments
+  ansible.builtin.set_fact:
+    fetched_harbor_users: >-
+      {%- set users = [] -%}
+      {%- for user in harbor_users -%}
+        {%- set projects = harbor_user_memberships | selectattr('username', 'equalto', user.username) | list -%}
+        {%- set _ = users.append({'user_id': user.user_id | default(0), 'username': user.username | default(''), 'email': user.email | default(''), 'realname': user.realname | default(''), 'comment': user.comment | default(''), 'sysadmin_flag': user.sysadmin_flag | default(false), 'admin_role_in_auth': user.admin_role_in_auth | default(false), 'creation_time': user.creation_time | default(''), 'update_time': user.update_time | default(''), 'project_count': projects | length, 'projects': projects}) -%}
+      {%- endfor -%}
+      {{ users }}
+
+- name: Ensure Harbor user snapshot directory exists
+  ansible.builtin.file:
+    path: "{{ harbor_temp_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+
+- name: Save Harbor user snapshot
+  ansible.builtin.copy:
+    content: "{{ fetched_harbor_users | to_nice_json }}"
+    dest: "{{ harbor_temp_dir }}/HarborUsers.json"
+    mode: "0640"
+  delegate_to: localhost
+
+- name: Save Harbor image snapshot
+  ansible.builtin.copy:
+    content: "{{ fetched_harbor_images | to_nice_json }}"
+    dest: "{{ harbor_temp_dir }}/HarborImages.json"
+    mode: "0640"
+  delegate_to: localhost
+
+- name: Save Harbor project snapshot
+  ansible.builtin.copy:
+    content: "{{ harbor_projects | to_nice_json }}"
+    dest: "{{ harbor_temp_dir }}/HarborProjects.json"
+    mode: "0640"
+  delegate_to: localhost
+
+- name: Set Harbor discovery result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: fetch_harbor
+      local_harbor_url: "{{ harbor_local_url }}"
+      project_count: "{{ harbor_projects | length }}"
+      projects: "{{ harbor_projects }}"
+      repository_count: "{{ harbor_repositories | length }}"
+      image_count: "{{ fetched_harbor_images | length }}"
+      images: "{{ fetched_harbor_images }}"
+      user_count: "{{ fetched_harbor_users | length }}"
+      users: "{{ fetched_harbor_users }}"
+      assignment_count: "{{ harbor_user_memberships | length }}"
+      image_snapshot: "{{ harbor_temp_dir }}/HarborImages.json"
+      project_snapshot: "{{ harbor_temp_dir }}/HarborProjects.json"
+      user_snapshot: "{{ harbor_temp_dir }}/HarborUsers.json"
+      message: "Harbor projects, repositories, images, users, and assignments fetched successfully"

@@ -1,0 +1,28 @@
+mysql:
+  image: mysql:8.0
+  rootPassword: root_password_123
+  user: appuser
+  password: app_password
+  database: appdb
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: ""
+
+backupCronJob:
+  enabled: true
+  schedule: "0 */6 * * *"
+  image: harbor.mypro.local/library/mypro-backup:v2.0.0
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -1,0 +1,20 @@
+frontend-service:
+  replicaCount: 2
+  ingress:
+    enabled: true
+    host: app.dev.mypro.local
+
+backend-service:
+  replicaCount: 2
+  vault:
+    enabled: true
+    secretPath: secret/data/dev/database
+
+db-service:
+  mysql:
+    database: appdb
+  backupCronJob:
+    enabled: true
+
+redis-service:
+  replicaCount: 1

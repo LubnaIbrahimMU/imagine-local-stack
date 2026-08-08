@@ -1,0 +1,2 @@
+---
+harbor_selected_username: "{{ harbor_config.user_username | default('') }}"

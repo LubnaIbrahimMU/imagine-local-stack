@@ -1,0 +1,89 @@
+---
+- name: Validate Harbor password reset input
+  ansible.builtin.assert:
+    that:
+      - harbor_selected_username is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - harbor_selected_username != harbor_username
+      - harbor_new_user_password | length >= 8
+      - harbor_new_user_password | length <= 128
+      - harbor_new_user_password is search('[A-Z]')
+      - harbor_new_user_password is search('[a-z]')
+      - harbor_new_user_password is search('[0-9]')
+    fail_msg: >-
+      A valid user_username different from the authenticated administrator is
+      required. new_password must contain 8-128 characters with at least one
+      uppercase letter, one lowercase letter, and one number.
+    quiet: true
+
+- name: Find Harbor user for password reset
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users?username={{ harbor_selected_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 400
+      - 401
+      - 403
+  register: harbor_password_user_search
+  changed_when: false
+
+- name: Fail with sanitized Harbor user lookup reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected lookup of user '{{ harbor_selected_username }}' with
+      HTTP {{ harbor_password_user_search.status }}:
+      {{ harbor_password_user_search.json | default(harbor_password_user_search.content | default('No response body')) }}
+  when: harbor_password_user_search.status | int != 200
+
+- name: Select exact Harbor user for password reset
+  ansible.builtin.set_fact:
+    harbor_password_user_matches: >-
+      {{ harbor_password_user_search.json | default([]) | selectattr('username', 'equalto', harbor_selected_username) | list }}
+
+- name: Fail when Harbor user does not exist
+  ansible.builtin.fail:
+    msg: "Harbor user '{{ harbor_selected_username }}' does not exist."
+  when: harbor_password_user_matches | length == 0
+
+- name: Reset Harbor user password
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users/{{ (harbor_password_user_matches | first).user_id }}/password"
+    method: PUT
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      new_password: "{{ harbor_new_user_password }}"
+    return_content: true
+    status_code:
+      - 200
+      - 400
+      - 401
+      - 403
+      - 404
+      - 422
+  register: harbor_password_reset_result
+
+- name: Fail with sanitized Harbor password reset reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected password reset for user '{{ harbor_selected_username }}'
+      with HTTP {{ harbor_password_reset_result.status }}:
+      {{ harbor_password_reset_result.json | default(harbor_password_reset_result.content | default('No response body')) }}
+  when: harbor_password_reset_result.status | int != 200
+
+- name: Set Harbor password reset result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: reset_user_password
+      username: "{{ harbor_selected_username }}"
+      password_reset: true
+      message: "Harbor user password reset successfully"

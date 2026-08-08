@@ -1,0 +1,10 @@
+---
+harbor_selected_username: "{{ harbor_config.user_username | default('') }}"
+harbor_selected_project: "{{ harbor_config.project_name | default('') }}"
+harbor_selected_role: "{{ harbor_config.project_role | default('developer') }}"
+harbor_project_role_ids:
+  project_admin: 1
+  developer: 2
+  guest: 3
+  maintainer: 4
+  limited_guest: 5

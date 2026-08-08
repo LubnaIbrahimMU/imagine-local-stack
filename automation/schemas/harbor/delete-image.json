@@ -1,0 +1,41 @@
+{
+  "temp_dir": "/temp",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "managed-harbor-operations@v1",
+    "metadata": {
+      "subscription_id": "SUB_HARBOR_LOCAL",
+      "vendor_id": "V_2",
+      "service_key_id": "SK_HARBOR"
+    },
+    "action_key": "delete_image",
+    "temp_dir": "/temp",
+    "service_config": {
+      "project_name": "pro4",
+      "repository_name": "alpine",
+      "delete_repository": true,
+      "digest": "sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5"
+    },
+    "resources": {
+      "VM": [
+        {
+          "cgID": "cg-vm-harbor",
+          "cloudID": "",
+          "service_config": {
+            "docker_config": {
+              "env_vars": {
+                "HARBOR_EXTERNAL_URL": "https://harbor.aliien.uk",
+                "HARBOR_HOSTNAME": "harbor.aliien.uk"
+              }
+            }
+          },
+          "publicIP": "harbor.aliien.uk"
+        }
+      ]
+    },
+    "credentials": {
+      "username": "admin",
+      "password": "HarborAdminPassword123"
+    }
+  }
+}

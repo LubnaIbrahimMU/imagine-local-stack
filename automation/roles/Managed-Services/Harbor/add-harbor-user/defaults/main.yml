@@ -1,0 +1,14 @@
+---
+harbor_managed_username: "{{ harbor_config.user_username | default('') }}"
+harbor_managed_user_password: "{{ harbor_config.user_password | default('') }}"
+harbor_managed_user_email: "{{ harbor_config.user_email | default('') }}"
+harbor_managed_user_realname: "{{ harbor_config.user_realname | default('') }}"
+harbor_managed_user_comment: "{{ harbor_config.user_comment | default('') }}"
+harbor_managed_user_project: "{{ harbor_config.project_name | default('') }}"
+harbor_managed_user_role: "{{ harbor_config.project_role | default('developer') }}"
+harbor_project_role_ids:
+  project_admin: 1
+  developer: 2
+  guest: 3
+  maintainer: 4
+  limited_guest: 5

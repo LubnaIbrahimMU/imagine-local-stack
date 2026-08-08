@@ -1,0 +1,64 @@
+{{- if .Values.backupCronJob.enabled -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-db-backup-cronjob
+  labels:
+    app.kubernetes.io/name: db-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.backupCronJob.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: db-backup
+              image: {{ .Values.backupCronJob.image | quote }}
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: DB_HOST
+                  value: {{ .Release.Name }}-db-primary
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-secret
+                      key: db-user
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-secret
+                      key: db-password
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-db-secret
+                      key: db-name
+                - name: SINGLE_SHOT
+                  value: "true"
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: {{ .Release.Name }}-db-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-db-backup-pvc
+  labels:
+    app.kubernetes.io/name: db-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+{{- end }}

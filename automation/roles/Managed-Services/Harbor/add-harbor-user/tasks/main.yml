@@ -1,0 +1,216 @@
+---
+- name: Validate Harbor user and project membership input
+  ansible.builtin.assert:
+    that:
+      - harbor_managed_username is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - harbor_managed_user_password | length >= 8
+      - harbor_managed_user_password | length <= 128
+      - harbor_managed_user_password is search('[A-Z]')
+      - harbor_managed_user_password is search('[a-z]')
+      - harbor_managed_user_password is search('[0-9]')
+      - harbor_managed_user_email is match('^[^@ ]+@[^@ ]+\\.[^@ ]+$')
+      - harbor_managed_user_project is match('^[a-z0-9][a-z0-9._-]*$')
+      - harbor_managed_user_role in harbor_project_role_ids
+      - harbor_username | length > 0
+      - harbor_password | length > 0
+    fail_msg: >-
+      A valid user_username, user_email, project_name, and project_role are
+      required. user_password must contain 8-128 characters with at least one
+      uppercase letter, one lowercase letter, and one number. project_role
+      must be project_admin, developer, guest, maintainer, or limited_guest.
+    quiet: true
+
+- name: Verify target Harbor project exists
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_managed_user_project | urlencode }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_managed_user_project_result
+  changed_when: false
+
+- name: Find existing Harbor user
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users?username={{ harbor_managed_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_managed_user_search
+  changed_when: false
+
+- name: Select exact Harbor user match
+  ansible.builtin.set_fact:
+    harbor_managed_user_matches: >-
+      {{
+        harbor_managed_user_search.json
+        | default([])
+        | selectattr('username', 'equalto', harbor_managed_username)
+        | list
+      }}
+
+- name: Create Harbor local user
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/users"
+    method: POST
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      username: "{{ harbor_managed_username }}"
+      password: "{{ harbor_managed_user_password }}"
+      email: "{{ harbor_managed_user_email }}"
+      realname: "{{ harbor_managed_user_realname | default(harbor_managed_username, true) }}"
+      comment: "{{ harbor_managed_user_comment }}"
+    return_content: true
+    status_code:
+      - 201
+      - 400
+      - 401
+      - 403
+      - 409
+      - 422
+  when: harbor_managed_user_matches | length == 0
+  register: harbor_managed_user_create_result
+
+- name: Fail with sanitized Harbor user creation reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected creation of user '{{ harbor_managed_username }}' with
+      HTTP {{ harbor_managed_user_create_result.status }}:
+      {{
+        harbor_managed_user_create_result.json
+        | default(harbor_managed_user_create_result.content | default('No response body'))
+      }}
+  when:
+    - harbor_managed_user_matches | length == 0
+    - harbor_managed_user_create_result.status | default(0) | int not in [201]
+
+- name: Find existing Harbor project membership
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_managed_user_project | urlencode }}/members?entityname={{ harbor_managed_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: harbor_managed_user_member_search
+  changed_when: false
+
+- name: Select exact Harbor project membership
+  ansible.builtin.set_fact:
+    harbor_managed_user_memberships: >-
+      {%- set matches = [] -%}
+      {%- for member in (harbor_managed_user_member_search.json | default([])) -%}
+        {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+        {%- if member_username == harbor_managed_username -%}
+          {%- set _ = matches.append(member) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ matches }}
+
+- name: Add Harbor user to project
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_managed_user_project | urlencode }}/members"
+    method: POST
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: raw
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    body: >-
+      {{
+        {
+          'role_id': harbor_project_role_ids[harbor_managed_user_role] | int,
+          'member_user': {'username': harbor_managed_username}
+        }
+        | to_json
+      }}
+    return_content: true
+    status_code:
+      - 201
+      - 400
+      - 401
+      - 403
+      - 404
+      - 409
+      - 422
+  when: harbor_managed_user_memberships | length == 0
+  register: harbor_managed_user_member_create_result
+
+- name: Fail with sanitized Harbor project membership reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected assignment of user '{{ harbor_managed_username }}' to
+      project '{{ harbor_managed_user_project }}' with HTTP
+      {{ harbor_managed_user_member_create_result.status }}:
+      {{
+        harbor_managed_user_member_create_result.json
+        | default(harbor_managed_user_member_create_result.content | default('No response body'))
+      }}
+  when:
+    - harbor_managed_user_memberships | length == 0
+    - harbor_managed_user_member_create_result.status | int not in [201, 409]
+
+- name: Update Harbor user project role
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_managed_user_project | urlencode }}/members/{{ (harbor_managed_user_memberships | first).id }}"
+    method: PUT
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: raw
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    body: >-
+      {{
+        {'role_id': harbor_project_role_ids[harbor_managed_user_role] | int}
+        | to_json
+      }}
+    status_code: 200
+  when:
+    - harbor_managed_user_memberships | length > 0
+    - ((harbor_managed_user_memberships | first).role_id | int) != (harbor_project_role_ids[harbor_managed_user_role] | int)
+  register: harbor_managed_user_member_update_result
+
+- name: Set Harbor user assignment result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: add_user
+      username: "{{ harbor_managed_username }}"
+      project_name: "{{ harbor_managed_user_project }}"
+      project_role: "{{ harbor_managed_user_role }}"
+      role_id: "{{ harbor_project_role_ids[harbor_managed_user_role] | int }}"
+      user_created: >-
+        {{
+          (harbor_managed_user_matches | length == 0)
+          and (harbor_managed_user_create_result.status | default(0) | int == 201)
+        }}
+      membership_created: >-
+        {{
+          (harbor_managed_user_memberships | length == 0)
+          and (harbor_managed_user_member_create_result.status | default(0) | int == 201)
+        }}
+      role_updated: >-
+        {{
+          (harbor_managed_user_memberships | length > 0)
+          and (((harbor_managed_user_memberships | first).role_id | int) != (harbor_project_role_ids[harbor_managed_user_role] | int))
+        }}
+      message: "Harbor user is assigned to the project"

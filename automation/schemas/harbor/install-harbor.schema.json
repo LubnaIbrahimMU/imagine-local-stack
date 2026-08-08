@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cloudgate/services/common/managed-harbor/install/v1",
+  "title": "CloudGate Portable Harbor Installation",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "provisioning_spec"
+  ],
+  "properties": {
+    "provisioning_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_schema_version",
+        "service_profile",
+        "metadata",
+        "target",
+        "harbor"
+      ],
+      "properties": {
+        "resource_schema_version": {
+          "const": 1
+        },
+        "service_profile": {
+          "const": "managed-harbor-install@v1"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "subscription_id",
+            "vendor_id",
+            "service_key_id"
+          ],
+          "properties": {
+            "subscription_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "vendor_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "service_key_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host",
+            "port",
+            "user",
+            "docker_user",
+            "strict_host_key_checking"
+          ],
+          "properties": {
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 22
+            },
+            "user": {
+              "type": "string",
+              "minLength": 1
+            },
+            "docker_user": {
+              "type": "string",
+              "minLength": 1
+            },
+            "private_key_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "password": {
+              "type": "string",
+              "minLength": 1,
+              "writeOnly": true
+            },
+            "become_password": {
+              "type": "string",
+              "minLength": 1,
+              "writeOnly": true
+            },
+            "strict_host_key_checking": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "private_key_file"
+              ]
+            },
+            {
+              "required": [
+                "password"
+              ]
+            }
+          ]
+        },
+        "harbor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "installer_url",
+            "hostname",
+            "http_port",
+            "admin_password",
+            "database_password",
+            "install_dir",
+            "data_volume",
+            "log_location",
+            "enable_trivy",
+            "https",
+            "database",
+            "trivy",
+            "jobservice",
+            "notification"
+          ],
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            },
+            "installer_url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "installer_checksum": {
+              "type": "string"
+            },
+            "hostname": {
+              "type": "string",
+              "minLength": 1
+            },
+            "external_url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            },
+            "http_port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "admin_password": {
+              "type": "string",
+              "minLength": 8,
+              "writeOnly": true
+            },
+            "database_password": {
+              "type": "string",
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9]+$",
+              "writeOnly": true
+            },
+            "install_dir": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "data_volume": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "log_location": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "log_level": {
+              "enum": [
+                "debug",
+                "info",
+                "warning",
+                "error",
+                "fatal"
+              ],
+              "default": "info"
+            },
+            "log_rotate_count": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20
+            },
+            "log_rotate_size": {
+              "type": "string",
+              "pattern": "^[0-9]+[KMG]$",
+              "default": "100M"
+            },
+            "enable_trivy": {
+              "type": "boolean",
+              "default": true
+            },
+            "health_retries": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 60
+            },
+            "health_delay": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            "https": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled",
+                "port",
+                "certificate",
+                "private_key"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "certificate": {
+                  "type": "string"
+                },
+                "private_key": {
+                  "type": "string"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "enabled": {
+                        "const": true
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "certificate": {
+                        "minLength": 1
+                      },
+                      "private_key": {
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "database": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "max_idle_conns",
+                "max_open_conns",
+                "conn_max_lifetime",
+                "conn_max_idle_time"
+              ],
+              "properties": {
+                "max_idle_conns": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "max_open_conns": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "conn_max_lifetime": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "conn_max_idle_time": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "trivy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ignore_unfixed",
+                "skip_update",
+                "skip_java_db_update",
+                "offline_scan",
+                "security_check",
+                "insecure"
+              ],
+              "properties": {
+                "ignore_unfixed": {
+                  "type": "boolean"
+                },
+                "skip_update": {
+                  "type": "boolean"
+                },
+                "skip_java_db_update": {
+                  "type": "boolean"
+                },
+                "offline_scan": {
+                  "type": "boolean"
+                },
+                "security_check": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "insecure": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "jobservice": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "max_job_workers",
+                "max_job_duration_hours",
+                "logger_sweeper_duration"
+              ],
+              "properties": {
+                "max_job_workers": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "max_job_duration_hours": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "logger_sweeper_duration": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "notification": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "webhook_job_max_retry",
+                "webhook_job_http_client_timeout"
+              ],
+              "properties": {
+                "webhook_job_max_retry": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "webhook_job_http_client_timeout": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

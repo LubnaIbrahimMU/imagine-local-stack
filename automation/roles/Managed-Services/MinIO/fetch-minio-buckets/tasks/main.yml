@@ -1,0 +1,29 @@
+---
+- name: Set facts for MinIO fetch buckets
+  ansible.builtin.set_fact:
+    m_root_user: "{{ root_user | default(minio_root_user_input | default('admin', true), true) }}"
+    m_root_pass: "{{ root_password | default(minio_root_password_input | default('MinioAdminPassword123', true), true) }}"
+    m_endpoint: "{{ endpoint | default('http://127.0.0.1:9000', true) }}"
+    m_container: "{{ minio_container | default('cloudgate_managed_minio', true) }}"
+
+- name: Fetch MinIO buckets via Docker container or Kubernetes pod
+  ansible.builtin.shell: |
+    if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ m_container }}$"; then
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || true
+      docker exec {{ m_container }} mc ls --json local
+    elif command -v kubectl &>/dev/null; then
+      POD_NAME=$(kubectl get pod -n minio -l app=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}' 2>/dev/null || kubectl get pod -n minio -l app.kubernetes.io/name=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}')
+      if [ -n "$POD_NAME" ]; then
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || true
+        kubectl exec -n minio "$POD_NAME" -- mc ls --json local
+      fi
+    fi
+  register: buckets_json
+  changed_when: false
+
+- name: Set fact for fetch_buckets result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      action: fetch_buckets
+      output: "{{ buckets_json.stdout | default('') }}"

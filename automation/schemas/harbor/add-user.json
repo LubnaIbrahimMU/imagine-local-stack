@@ -1,0 +1,35 @@
+{
+  "temp_dir": "/temp",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "managed-harbor-operations@v1",
+    "metadata": {
+      "subscription_id": "SUB_HARBOR_LOCAL",
+      "vendor_id": "V_2",
+      "service_key_id": "SK_HARBOR"
+    },
+    "action_key": "add_user",
+    "temp_dir": "/temp",
+    "service_config": {
+      "project_name": "pro4",
+      "user_username": "pro6-user",
+      "user_password": "StrongUser123!",
+      "user_email": "pro6-user@example.com",
+      "user_realname": "Project User",
+      "user_comment": "Managed by CloudGate",
+      "project_role": "developer"
+    },
+    "resources": {
+      "VM": [
+        {
+          "publicIP": "harbor.aliien.uk",
+          "cloudID": ""
+        }
+      ]
+    },
+    "credentials": {
+      "username": "admin",
+      "password": "HarborAdminPassword123"
+    }
+  }
+}

@@ -1,0 +1,168 @@
+# ==============================================================================
+# Ultra-Lightweight HostPath PersistentVolumes (PV)
+# Total disk footprint across all services: ~3.75 GB (Optimized for <10GB disk)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Custom Local StorageClass
+# ------------------------------------------------------------------------------
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+
+---
+# ------------------------------------------------------------------------------
+# 2. Vault PersistentVolume (500Mi)
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vault-data
+  labels:
+    app: vault
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/vault"
+    type: DirectoryOrCreate
+
+---
+# ------------------------------------------------------------------------------
+# 3. MinIO PersistentVolume (1Gi)
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-minio-data
+  labels:
+    app: minio
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/minio"
+    type: DirectoryOrCreate
+
+---
+# ------------------------------------------------------------------------------
+# 4. Harbor Registry PersistentVolume (1Gi)
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-harbor-registry
+  labels:
+    app: harbor-registry
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/harbor/registry"
+    type: DirectoryOrCreate
+
+---
+# ------------------------------------------------------------------------------
+# 5. Postgres Database PersistentVolume (500Mi)
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-postgres-db
+  labels:
+    app: postgres
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/postgres"
+    type: DirectoryOrCreate
+
+---
+# ------------------------------------------------------------------------------
+# 6. Redis Cache PersistentVolume (256Mi)
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-redis-data
+  labels:
+    app: redis
+spec:
+  capacity:
+    storage: 256Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/redis"
+    type: DirectoryOrCreate
+
+---
+# ------------------------------------------------------------------------------
+# 7. Dedicated Local Host Backup Volume (500Mi) -> /mnt/data/backups
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-backup-local
+  labels:
+    app: backup
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: "/mnt/data/backups"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-local-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 500Mi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-minio-data
+  namespace: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 1Gi
+

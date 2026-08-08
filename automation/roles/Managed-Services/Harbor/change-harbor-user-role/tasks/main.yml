@@ -1,0 +1,90 @@
+---
+- name: Validate Harbor role change input
+  ansible.builtin.assert:
+    that:
+      - harbor_selected_username is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - harbor_selected_project is match('^[a-z0-9][a-z0-9._-]*$')
+      - harbor_selected_role in harbor_project_role_ids
+    fail_msg: >-
+      A valid user_username, project_name, and project_role are required.
+    quiet: true
+
+- name: Find Harbor membership for role change
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_selected_project | urlencode }}/members?entityname={{ harbor_selected_username | urlencode }}&page=1&page_size=100"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    return_content: true
+    status_code:
+      - 200
+      - 400
+      - 401
+      - 403
+      - 404
+  register: harbor_role_membership_search
+  changed_when: false
+
+- name: Fail with sanitized Harbor membership lookup reason
+  ansible.builtin.fail:
+    msg: >-
+      Harbor rejected membership lookup for user
+      '{{ harbor_selected_username }}' in project
+      '{{ harbor_selected_project }}' with HTTP
+      {{ harbor_role_membership_search.status }}:
+      {{
+        harbor_role_membership_search.json
+        | default(harbor_role_membership_search.content | default('No response body'))
+      }}
+  when: harbor_role_membership_search.status | int != 200
+
+- name: Select exact Harbor membership for role change
+  ansible.builtin.set_fact:
+    harbor_role_memberships: >-
+      {%- set matches = [] -%}
+      {%- for member in (harbor_role_membership_search.json | default([])) -%}
+        {%- set member_username = member.entity_name | default(member.member_user.username | default(''), true) -%}
+        {%- if member_username == harbor_selected_username -%}
+          {%- set _ = matches.append(member) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ matches }}
+
+- name: Fail when Harbor user is not assigned to project
+  ansible.builtin.fail:
+    msg: >-
+      User '{{ harbor_selected_username }}' is not assigned to project
+      '{{ harbor_selected_project }}'. Add the user before changing the role.
+  when: harbor_role_memberships | length == 0
+
+- name: Change Harbor user project role
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_selected_project | urlencode }}/members/{{ (harbor_role_memberships | first).id }}"
+    method: PUT
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: raw
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    body: >-
+      {{ {'role_id': harbor_project_role_ids[harbor_selected_role] | int} | to_json }}
+    status_code: 200
+  when: ((harbor_role_memberships | first).role_id | int) != (harbor_project_role_ids[harbor_selected_role] | int)
+
+- name: Set Harbor role change result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: change_user_role
+      username: "{{ harbor_selected_username }}"
+      project_name: "{{ harbor_selected_project }}"
+      project_role: "{{ harbor_selected_role }}"
+      role_id: "{{ harbor_project_role_ids[harbor_selected_role] | int }}"
+      changed: >-
+        {{ ((harbor_role_memberships | first).role_id | int) != (harbor_project_role_ids[harbor_selected_role] | int) }}
+      message: "Harbor user project role is ready"

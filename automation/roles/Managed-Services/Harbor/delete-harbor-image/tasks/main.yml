@@ -1,0 +1,157 @@
+---
+- name: Validate selected Harbor artifact
+  ansible.builtin.assert:
+    that:
+      - harbor_local_url | length > 0
+      - harbor_username | length > 0
+      - harbor_password | length > 0
+      - harbor_delete_project | length > 0
+      - harbor_delete_repository | length > 0
+      - harbor_delete_project is not match('^REPLACE_')
+      - harbor_delete_repository is not match('^REPLACE_')
+      - harbor_delete_digest is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: >-
+      Harbor deletion requires URL, credentials, project_name, repository_name,
+      and the exact sha256 digest selected by the backend.
+    quiet: true
+
+- name: Resolve selected Harbor artifact API path
+  ansible.builtin.set_fact:
+    harbor_delete_repository_api_name: "{{ harbor_delete_repository | replace('/', '%252F') }}"
+
+- name: Verify selected Harbor artifact exists
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}/artifacts/{{ harbor_delete_digest }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    return_content: true
+    status_code:
+      - 200
+      - 404
+  register: harbor_selected_artifact
+  changed_when: false
+
+- name: Fail when selected Harbor artifact cannot be found
+  ansible.builtin.fail:
+    msg: >-
+      The selected Harbor artifact was not found at
+      {{ harbor_delete_project }}/{{ harbor_delete_repository }}@{{ harbor_delete_digest }}.
+      Use the exact project_name, repository_name, and digest returned by fetch-harbor.
+  when:
+    - harbor_selected_artifact.status == 404
+    - not (harbor_delete_repository_entirely | bool)
+
+- name: Delete selected Harbor artifact by digest
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}/artifacts/{{ harbor_delete_digest }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    status_code:
+      - 200
+  register: harbor_delete_result
+  when: harbor_selected_artifact.status == 200
+
+- name: Verify selected Harbor artifact was deleted
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}/artifacts/{{ harbor_delete_digest }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    status_code: 404
+  changed_when: false
+  when: harbor_selected_artifact.status == 200
+
+- name: Check selected Harbor repository before complete deletion
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    status_code:
+      - 200
+      - 404
+  register: harbor_selected_repository
+  changed_when: false
+  when: harbor_delete_repository_entirely | bool
+
+- name: Delete selected Harbor repository
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}"
+    method: DELETE
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    status_code: 200
+  register: harbor_repository_delete_result
+  when:
+    - harbor_delete_repository_entirely | bool
+    - harbor_selected_repository.status == 200
+
+- name: Verify selected Harbor repository was deleted
+  ansible.builtin.uri:
+    url: "{{ harbor_api_base_url }}/projects/{{ harbor_delete_project | urlencode }}/repositories/{{ harbor_delete_repository_api_name }}"
+    method: GET
+    url_username: "{{ harbor_username }}"
+    url_password: "{{ harbor_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ harbor_validate_certs }}"
+    headers:
+      Accept: application/json
+    status_code: 404
+  changed_when: false
+  when: harbor_delete_repository_entirely | bool
+
+- name: Set Harbor deletion result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      operation: delete_image
+      local_harbor_url: "{{ harbor_local_url }}"
+      project_name: "{{ harbor_delete_project }}"
+      repository_name: "{{ harbor_delete_repository }}"
+      digest: "{{ harbor_delete_digest }}"
+      deleted: >-
+        {{
+          ((harbor_selected_repository.status | default(404)) == 200)
+          if (harbor_delete_repository_entirely | bool)
+          else (harbor_selected_artifact.status == 200)
+        }}
+      repository_deleted: >-
+        {{
+          (harbor_delete_repository_entirely | bool)
+          and ((harbor_selected_repository.status | default(404)) == 200)
+        }}
+      message: >-
+        {{
+          'Selected Harbor repository deleted successfully'
+          if (
+            (harbor_delete_repository_entirely | bool)
+            and ((harbor_selected_repository.status | default(404)) == 200)
+          )
+          else (
+            'Selected Harbor repository no longer exists'
+            if (harbor_delete_repository_entirely | bool)
+            else 'Selected Harbor artifact deleted successfully'
+          )
+        }}

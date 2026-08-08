@@ -1,0 +1,95 @@
+---
+- name: Managed Harbor operations
+  hosts: all
+  gather_facts: false
+  tags:
+    - operations
+    - harbor_operations
+  vars:
+    cg_spec: "{{ provisioning_spec }}"
+    harbor_config: "{{ cg_spec.service_config | default({}) }}"
+    harbor_action_key: "{{ action_key | default(cg_spec.action_key | default('')) }}"
+    harbor_host: "{{ ((((cg_spec.resources | default({})).VM | default([{}]))[0]).publicIP) | default('vharbor.aliien.uk', true) }}"
+    harbor_raw_url: "{{ harbor_config.local_harbor_url | default(cg_spec.local_harbor_url | default(local_harbor_url | default(harbor_host, true), true), true) }}"
+    harbor_mapped_url: "{{ 'vharbor.aliien.uk' if harbor_raw_url == 'harbor.aliien.uk' else harbor_raw_url }}"
+    harbor_local_url: "{{ (harbor_mapped_url if harbor_mapped_url.startswith('http://') or harbor_mapped_url.startswith('https://') else ('https://' ~ harbor_mapped_url if '.' in harbor_mapped_url else 'http://' ~ harbor_mapped_url)) | regex_replace('/+$', '') }}"
+    harbor_username: "{{ (cg_spec.credentials | default({})).username | default('admin', true) }}"
+    harbor_password: "{{ (cg_spec.credentials | default({})).password | default('HarborAdminPassword123', true) }}"
+    harbor_validate_certs: "{{ harbor_config.validate_certs | default(false) | bool }}"
+    harbor_api_version: "{{ harbor_config.api_version | default('v2.0') }}"
+    harbor_api_base_url: "{{ harbor_local_url }}/api/{{ harbor_api_version }}"
+    harbor_page_size: "{{ harbor_config.page_size | default(100) | int }}"
+    harbor_project_filter: "{{ harbor_config.project_name | default('') }}"
+    harbor_temp_dir: "{{ cg_spec.temp_dir | default('/tmp') }}"
+
+  tasks:
+    - name: Validate Harbor action
+      ansible.builtin.assert:
+        that:
+          - harbor_action_key in ['fetch_harbor', 'fetch_images', 'fetch_users', 'delete_image', 'add_project', 'add_image', 'delete_project', 'add_user', 'remove_user_from_project', 'change_user_role', 'reset_user_password', 'delete_user']
+          - harbor_local_url | length > 0
+          - harbor_username | length > 0
+          - harbor_password | length > 0
+          - harbor_api_version is match('^v[0-9]+\\.[0-9]+$')
+        fail_msg: >-
+          action_key must be fetch_harbor, fetch_images, fetch_users,
+          delete_image, add_project, add_image, delete_project, add_user,
+          remove_user_from_project, change_user_role, reset_user_password, or
+          delete_user, and the operation must resolve
+          local_harbor_url, harbor_username, and harbor_password.
+        quiet: true
+
+    - name: Run Harbor image discovery
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/fetch-harbor
+      when: harbor_action_key in ['fetch_harbor', 'fetch_images', 'fetch_users']
+
+    - name: Create or update Harbor project
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/add-harbor-project
+      when: harbor_action_key in ['add_project', 'add_image']
+
+    - name: Pull and push images into Harbor project
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/add-harbor-image
+      when: harbor_action_key == 'add_image'
+
+    - name: Run selected Harbor image deletion
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/delete-harbor-image
+      when: harbor_action_key == 'delete_image'
+
+    - name: Delete selected Harbor project
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/delete-harbor-project
+      when: harbor_action_key == 'delete_project'
+
+    - name: Create Harbor user and assign project role
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/add-harbor-user
+      when: harbor_action_key == 'add_user'
+
+    - name: Remove Harbor user from project
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/remove-harbor-user-from-project
+      when: harbor_action_key == 'remove_user_from_project'
+
+    - name: Change Harbor user project role
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/change-harbor-user-role
+      when: harbor_action_key == 'change_user_role'
+
+    - name: Reset Harbor user password
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/reset-harbor-user-password
+      when: harbor_action_key == 'reset_user_password'
+
+    - name: Delete Harbor user and project assignments
+      ansible.builtin.include_role:
+        name: ../../roles/Managed-Services/Harbor/delete-harbor-user
+      when: harbor_action_key == 'delete_user'
+
+    - name: Display Harbor operation result
+      ansible.builtin.debug:
+        var: cg_result
+      when: cg_result is defined

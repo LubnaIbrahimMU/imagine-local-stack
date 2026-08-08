@@ -1,0 +1,78 @@
+---
+- name: Set facts for file upload
+  ansible.builtin.set_fact:
+    m_bucket: "{{ bucket_name | default(cg_spec.bucket_name | default(cg_spec.service_config.bucket_name | default('default', true), true), true) }}"
+    m_minio_bucket: "{{ minio_bucket | default(cg_spec.minio_bucket | default(bucket_name | default(cg_spec.bucket_name | default('default', true), true), true), true) }}"
+    m_src_raw: "{{ src_file | default(cg_spec.src_file | default(cg_spec.service_config.file_path | default('/tmp/test-upload.txt'), true), true) }}"
+    m_dest: "{{ dest_path | default(cg_spec.dest_path | default(cg_spec.service_config.target_path | default(''), true), true) }}"
+    m_target: "{{ target_storage | default(cg_spec.target_storage | default(cg_spec.service_config.target_storage | default('minio', true), true), true) }}"
+    m_root_user: "{{ root_user | default(cg_spec.root_user | default(cg_spec.service_config.root_user | default(minio_root_user_input | default('admin', true), true), true), true) }}"
+    m_root_pass: "{{ root_password | default(cg_spec.root_password | default(cg_spec.service_config.root_password | default(minio_root_password_input | default('MinioAdminPassword123', true), true), true), true) }}"
+    m_endpoint: "{{ endpoint | default('http://127.0.0.1:9000', true) }}"
+    m_container: "{{ minio_container | default('cloudgate_managed_minio', true) }}"
+
+- name: Validate upload file inputs
+  ansible.builtin.assert:
+    that:
+      - m_src_raw | length > 0
+    fail_msg: "src_file is required for upload_file operation"
+    quiet: true
+
+- name: Check staged file in /temp
+  ansible.builtin.stat:
+    path: "/temp/{{ m_src_raw | basename }}"
+  register: staged_file_stat
+
+- name: Check raw source file exists
+  ansible.builtin.stat:
+    path: "{{ m_src_raw }}"
+  register: remote_file_stat
+  ignore_errors: true
+
+- name: Resolve working source file path
+  ansible.builtin.set_fact:
+    m_src: "{{ ('/temp/' ~ (m_src_raw | basename)) if (staged_file_stat.stat is defined and staged_file_stat.stat.exists) else (m_src_raw if (remote_file_stat.stat is defined and remote_file_stat.stat.exists | default(false)) else ('/tmp/' ~ (m_src_raw | basename))) }}"
+
+- name: Ensure test source file exists
+  ansible.builtin.copy:
+    content: "CloudGate Managed Storage Test Transfer File Content\n"
+    dest: "{{ m_src }}"
+    mode: '0644'
+  when: not (staged_file_stat.stat is defined and staged_file_stat.stat.exists) and (remote_file_stat.stat is not defined or not (remote_file_stat.stat.exists | default(false)))
+
+# ==============================================================================
+# Primary MinIO Upload (Docker Container / Kubernetes Pod)
+# ==============================================================================
+- name: Upload file to MinIO Container or Kubernetes Pod
+  ansible.builtin.shell: |
+    DEST_FILENAME="{{ m_dest | default(m_src | basename, true) }}"
+    if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ m_container }}$"; then
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || \
+      docker exec {{ m_container }} mc alias set local {{ m_endpoint }} {{ m_root_user }} MinioAdminPassword123
+      docker exec {{ m_container }} mc mb --ignore-existing local/{{ m_minio_bucket }}
+      cat "{{ m_src }}" | docker exec -i {{ m_container }} mc pipe local/{{ m_minio_bucket }}/"$DEST_FILENAME"
+    elif command -v kubectl &>/dev/null; then
+      POD_NAME=$(kubectl get pod -n minio -l app=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}' 2>/dev/null || kubectl get pod -n minio -l app.kubernetes.io/name=minio -o jsonpath='{% raw %}{.items[0].metadata.name}{% endraw %}')
+      if [ -n "$POD_NAME" ]; then
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} {{ m_root_pass }} 2>/dev/null || \
+        kubectl exec -n minio "$POD_NAME" -- mc alias set local http://127.0.0.1:9000 {{ m_root_user }} MinioAdminPassword123 2>/dev/null || true
+        kubectl exec -n minio "$POD_NAME" -- mc mb --ignore-existing local/{{ m_minio_bucket }}
+        cat "{{ m_src }}" | kubectl exec -i -n minio "$POD_NAME" -- mc pipe local/{{ m_minio_bucket }}/"$DEST_FILENAME"
+      else
+        echo "MinIO pod not found in minio namespace" && exit 1
+      fi
+    else
+      echo "MinIO container or Kubernetes pod not found" && exit 1
+    fi
+  register: upload_res
+  changed_when: false
+
+- name: Set fact for upload_file result
+  ansible.builtin.set_fact:
+    cg_result:
+      status: success
+      action: upload_file
+      primary_target: "minio"
+      minio_bucket: "{{ m_minio_bucket }}"
+      target_path: "{{ m_dest | default(m_src | basename, true) }}"
+      message: "Uploaded successfully from localhost to MinIO bucket ({{ m_minio_bucket }})"

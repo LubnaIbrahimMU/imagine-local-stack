@@ -1,0 +1,43 @@
+# ==============================================================================
+# High-Availability PodDisruptionBudgets (PDB)
+# Guarantees availability during node drain or maintenance
+# ==============================================================================
+
+# 1. Harbor Core PDB
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: harbor-core-pdb
+  namespace: harbor
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: harbor
+      component: core
+
+---
+# 2. MinIO Server PDB
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: minio-pdb
+  namespace: minio
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+
+---
+# 3. HashiCorp Vault PDB
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vault-pdb
+  namespace: vault
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault

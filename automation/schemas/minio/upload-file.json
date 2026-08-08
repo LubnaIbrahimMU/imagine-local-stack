@@ -1,0 +1,50 @@
+{
+  "key_name": "cloudgate-minio-04",
+  "server_key_path": "/playbook-template/server-private-key.pub",
+  "temp_dir": "/temp",
+  "neo4j_host": "neo4j+s://c4215879.databases.neo4j.io",
+  "neo4j_user": "c4215879",
+  "neo4j_password": "I97R-2_K8PPw-X57H-YfsBM_8wVrEM-SZvD9l3xZKpc",
+  "action_key": "upload_file",
+  "target_storage": "minio",
+  "backup_target": "minio",
+  "minio_bucket": "minioooo",
+
+  "root_password": "NewRootPassword123$",
+  "src_file": "/home/lu/alien.txt",
+  "dest_path": "alien.txt",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "aws-managed-minio@v1",
+    "action_key": "upload_file",
+    "metadata": {
+      "subscription_id": "SUB_MINIO_LOCAL_04",
+      "vendor_id": "V_2",
+      "service_key_id": "SK_MINIO"
+    },
+    "service_config": {
+      "bucket_name": "minioooo",
+      "minio_bucket": "minioooo",
+      "file_path": "/home/lu/alien.txt",
+      "src_file": "/home/lu/alien.txt",
+      "target_path": "alien.txt",
+      "dest_path": "alien.txt",
+      "target_storage": "minio",
+      "backup_target": "minio",
+
+      "root_user": "admin",
+      "root_password": "NewRootPassword123$"
+    },
+    "location": {
+      "region": "us-east-1",
+      "zone": "us-east-1a"
+    },
+    "resources": {
+      "VM": [
+        {
+          "publicIP": "98.86.140.152"
+        }
+      ]
+    }
+  }
+}

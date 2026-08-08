@@ -1,0 +1,6 @@
+apiVersion: v2
+name: backend-service
+description: Helm chart for Flask v2 REST API Backend Service with Vault Secret Injection
+type: application
+version: 2.0.0
+appVersion: "2.0.0"

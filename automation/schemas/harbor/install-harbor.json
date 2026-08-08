@@ -1,0 +1,21 @@
+{
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "k8s-pod-managed-harbor-install@v1",
+    "metadata": {
+      "subscription_id": "SUB_HARBOR_LOCAL_K8S",
+      "vendor_id": "V_LOCAL",
+      "service_key_id": "SK_HARBOR"
+    },
+    "harbor": {
+      "version": "2.15.1",
+      "hostname": "harbor.aliien.uk",
+      "external_url": "https://harbor.aliien.uk",
+      "http_port": 80,
+      "admin_password": "HarborAdminPassword123",
+      "database_password": "HarborDBPassword123",
+      "log_level": "info",
+      "enable_trivy": true
+    }
+  }
+}

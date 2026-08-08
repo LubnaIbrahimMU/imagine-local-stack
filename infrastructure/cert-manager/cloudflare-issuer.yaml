@@ -1,0 +1,36 @@
+# ==============================================================================
+# Cert-Manager Cloudflare DNS-01 ClusterIssuer for aliien.uk
+# Automatically issues and renews wildcard SSL certificates (*.aliien.uk)
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cloudflare-issuer
+spec:
+  acme:
+    email: admin@aliien.uk
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token-secret
+              key: api-token
+
+---
+# Certificate Request for *.aliien.uk
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: aliien-uk-wildcard-cert
+  namespace: default
+spec:
+  secretName: aliien-uk-tls
+  issuerRef:
+    name: cloudflare-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - "aliien.uk"
+    - "*.aliien.uk"

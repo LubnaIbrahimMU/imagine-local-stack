@@ -1,0 +1,30 @@
+{
+  "temp_dir": "/temp",
+  "provisioning_spec": {
+    "resource_schema_version": 1,
+    "service_profile": "managed-harbor-operations@v1",
+    "metadata": {
+      "subscription_id": "SUB_HARBOR_LOCAL",
+      "vendor_id": "V_2",
+      "service_key_id": "SK_HARBOR"
+    },
+    "action_key": "delete_project",
+    "temp_dir": "/temp",
+    "service_config": {
+      "project_name": "pro4",
+      "delete_repositories": true
+    },
+    "resources": {
+      "VM": [
+        {
+          "publicIP": "harbor.aliien.uk",
+          "cloudID": ""
+        }
+      ]
+    },
+    "credentials": {
+      "username": "admin",
+      "password": "HarborAdminPassword123"
+    }
+  }
+}
