@@ -31,6 +31,9 @@ reboot-fix:
 vault-init:
 	@./infrastructure/vault/vault-init.sh
 
+eso-setup:
+	@chmod +x ./infrastructure/vault/install-external-secrets.sh && ./infrastructure/vault/install-external-secrets.sh
+
 harbor-setup:
 	@./infrastructure/harbor/harbor-setup.sh
 

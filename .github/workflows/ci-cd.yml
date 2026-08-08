@@ -109,12 +109,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run Build & Push Script to Update Helm Image Tags & Chart appVersion
+      - name: Update Helm Image Tags & Chart appVersion to Commit SHA
         run: |
-          chmod +x ./scripts/build-and-push-images.sh
-          ./scripts/build-and-push-images.sh "${{ env.REGISTRY }}" "${{ env.HARBOR_PROJECT }}" "${{ env.IMAGE_TAG }}"
+          echo "Updating Helm image tags and Chart appVersion to commit SHA: ${{ env.IMAGE_TAG }}"
+          # ./scripts/build-and-push-images.sh "${{ env.REGISTRY }}" "${{ env.HARBOR_PROJECT }}" "${{ env.IMAGE_TAG }}"
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|g" helm/charts/frontend-service/values.yml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/values.yml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/Chart.yaml
+          
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|g" helm/charts/backend-service/values.yml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/Chart.yaml
+
+          sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:\"${{ env.IMAGE_TAG }}\"|g" helm/charts/db-service/values.yml
+
 
 
 

@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prd-project
+  namespace: argocd
+spec:
+  description: Production Environment Workloads
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: prd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

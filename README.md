@@ -1,7 +1,22 @@
 # Enterprise Kubernetes, GitOps, Vault, Harbor & Monitoring Platform (`mypro`)
 
-A production-grade, CKA-aligned Kubernetes infrastructure platform and GitOps deployment stack. This project builds upon the microservice application architecture of `lab3` and integrates the modular Helm, Argo CD, Vault, Harbor, NGINX Ingress, and Observability architecture patterns from `imagine-infrastructure`.
+A production-grade, CKA-aligned Kubernetes infrastructure platform and GitOps deployment stack. This project integrates modular Helm charts, Argo CD GitOps pipelines, HashiCorp Vault, External Secrets Operator (ESO), Harbor Registry, MinIO Object Storage, NGINX Ingress, and Observability monitoring.
 
+---
+
+## 🌐 Quick Service Access & URLs Dashboard
+
+| Service | Environment / Scope | Hostname / URL | Default Credentials / Auth | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| 🚢 **Harbor Container Registry** | Platform | [`https://vharbor.aliien.uk`](https://vharbor.aliien.uk) | `admin` / `HarborAdminPassword123` | Self-hosted OCI Image Registry (`pro4` project) |
+| 🔐 **HashiCorp Vault UI** | Security | [`http://vault.mypro.local`](http://vault.mypro.local) | Root Token: `root` | Central KV-v2 Secret Engine & Service Account Auth |
+| 🐙 **Argo CD GitOps UI** | Operations | [`http://argocd.mypro.local`](http://argocd.mypro.local) | `admin` / `ArgoAdminPassword123` | Declarative App-of-Apps GitOps Controller |
+| 🪣 **MinIO Console UI** | Storage | [`http://minio.mypro.local`](http://minio.mypro.local) | `admin` / `NewRootPassword123$` | S3-Compatible Local Object Storage Console |
+| 📈 **Grafana Observability** | Monitoring | [`http://grafana.mypro.local`](http://grafana.mypro.local) | `admin` / `admin` | Pre-configured System, Pod & Log Dashboards |
+| 🔍 **Prometheus Metrics** | Monitoring | [`http://prometheus.mypro.local`](http://prometheus.mypro.local) | Direct Access | Real-time Time Series Metrics Query Engine |
+| 🎨 **Frontend UI (DEV)** | Development | [`http://app.dev.mypro.local`](http://app.dev.mypro.local) | N/A | Development Web Interface (Namespace: `dev`) |
+| 🧪 **Frontend UI (UAT)** | Staging / UAT | [`http://app.uat.mypro.local`](http://app.uat.mypro.local) | N/A | Staging Web Interface (Namespace: `uat`) |
+| 🚀 **Frontend UI (PRD)** | Production | [`http://app.prd.mypro.local`](http://app.prd.mypro.local) | N/A | Production Web Interface (Namespace: `prd`) |
 
 ---
 
@@ -43,10 +58,11 @@ A production-grade, CKA-aligned Kubernetes infrastructure platform and GitOps de
 
 -----------------------------------------------------------------------------------------------------------------------------
 PLATFORM SERVICES:
+  - Harbor Container Registry (Self-Hosted Registry):               https://vharbor.aliien.uk
   - HashiCorp Vault (Secrets Management & Sidecar Agent Injection): http://vault.mypro.local
-  - Harbor Container Registry (Self-Hosted Registry):               http://harbor.mypro.local
   - Argo CD GitOps Operator (Declarative App-of-Apps Deployment):    http://argocd.mypro.local
-  - Prometheus, Grafana, Loki, Node Exporter, cAdvisor Stack:        http://grafana.mypro.local
+  - MinIO Object Storage (S3-Compatible Local Storage):             http://minio.mypro.local
+  - Prometheus & Grafana Observability Stack:                       http://grafana.mypro.local
 -----------------------------------------------------------------------------------------------------------------------------
 ```
 
@@ -63,7 +79,7 @@ mypro/
 ├── docker/                             # Application Containers & Source Code
 │   ├── frontend/                       # Express Node.js UI Service v2.0.0
 │   ├── backend/                        # Flask v2 REST API (DB Failover, Redis, Vault Secret Integration)
-│   └── backup/                         # MySQL/Postgres Automated Backup Worker
+│   └── backup/                         # MySQL Automated Backup Worker
 ├── helm/                               # Enterprise Helm Engineering
 │   ├── charts/
 │   │   ├── frontend-service/           # Deployment, Service, HPA, PDB, Ingress, SecurityContext, NetPol
@@ -75,12 +91,9 @@ mypro/
 │       ├── values-dev.yml             # Development environment overrides
 │       ├── values-uat.yml             # Staging UAT environment overrides
 │       └── values-prd.yml             # Production high-availability overrides
-
 ├── gitops/                             # Argo CD Declarative Pipeline
 │   ├── argo-app-of-apps/
-
 │   │   └── argo.yml                    # Master App-of-Apps controller manifest
-
 │   ├── app-projects/                   # Dev, UAT, PRD ArgoCD AppProjects
 │   └── apps/                           # Dev, UAT, PRD ArgoCD Application definitions
 ├── infrastructure/                     # Platform Services & Monitoring
@@ -89,9 +102,9 @@ mypro/
 │   ├── harbor/                         # Self-Hosted Harbor Registry config & setup script
 │   └── monitoring/                     # Prometheus, Grafana, Node Exporter, cAdvisor, Loki, Promtail
 └── scripts/                            # Operational & Reboot Automation
+    ├── build-and-push-images.sh        # Builds and pushes container images to Harbor with Git SHA tags
     ├── reboot-persistence-sync.sh      # Auto-resolves cluster IP and updates /etc/hosts on reboot
     ├── setup-local-cluster.sh          # One-touch cluster bootstrapper
-    ├── push-images.sh                  # Builds and pushes images to Harbor / Docker Hub
     ├── test-failover.sh                # DB Failover and pod disruption budget test suite
     └── backup-restore-db.sh            # Backup CronJob runner & PVC archive inspector
 ```
@@ -112,28 +125,27 @@ If you restart your computer and local domains (`*.mypro.local`) break due to lo
 make reboot-fix
 ```
 
-### 3. Deploy Environments via Helm
+### 3. Build & Push Images to Harbor
 ```bash
-make dev-up   # Deploy to namespace 'dev' (app.dev.mypro.local)
-make uat-up   # Deploy to namespace 'uat' (app.uat.mypro.local)
-make prd-up   # Deploy to namespace 'prd' (app.prd.mypro.local)
+./scripts/build-and-push-images.sh
 ```
 
-### 4. Build & Push Images
+### 4. Deploy Environments via Helm
 ```bash
-make push-images
+make dev-up   # Deploy to namespace 'dev' (http://app.dev.mypro.local)
+make uat-up   # Deploy to namespace 'uat' (http://app.uat.mypro.local)
+make prd-up   # Deploy to namespace 'prd' (http://app.prd.mypro.local)
 ```
 
 ---
 
-## 🔐 Secrets Management with HashiCorp Vault
+## 🔐 Secrets Management with HashiCorp Vault & ESO
 
-Vault is installed in namespace `vault`. The automated script `infrastructure/vault/vault-init.sh` performs:
+Vault is installed in namespace `vault`. The automated script `infrastructure/vault/seed-vault-secrets.sh` performs:
 1. Unsealing Vault using stored keys (`infrastructure/vault/vault-keys.json`).
 2. Enabling the KV-v2 secrets engine at `secret/`.
-3. Writing environment secrets (`secret/data/dev/database`, `secret/data/uat/database`, `secret/data/prd/database`).
-4. Configuring Kubernetes ServiceAccount authentication.
-5. Sourcing credentials directly into backend pods via Vault Agent Sidecar annotations (`/vault/secrets/db-config`).
+3. Seeding environment secrets (`secret/data/dev/database`, `secret/data/dev/minio`, `secret/data/dev/app`).
+4. Sourcing credentials directly into Kubernetes secrets via External Secrets Operator (ESO) and Vault Agent.
 
 ---
 
@@ -142,12 +154,7 @@ Vault is installed in namespace `vault`. The automated script `infrastructure/va
 The monitoring stack includes:
 - **Node Exporter**: Collects host hardware and kernel metrics (CPU, RAM, Disk I/O).
 - **cAdvisor**: Collects container-level resource consumption, memory working set size, and CPU throttle percentages.
-- **Prometheus & Grafana**: Pre-configured dashboards accessible at `http://grafana.mypro.local`.
+- **Prometheus & Grafana**: Pre-configured dashboards accessible at [`http://grafana.mypro.local`](http://grafana.mypro.local).
 - **Loki & Promtail**: Collects pod log stdout/stderr streams.
 - **Alertmanager**: Triggers alerts on container crashes, memory throttling, and database downtime.
 
----
-
-## 📖 Operational Manual & Cheat Sheet
-
-For an exhaustive list of CKA operational commands, Vault CLI commands, Harbor registry instructions, HPA stress testing, and network policy debugging, refer to [CHEATSHEET.md](CHEATSHEET.md).

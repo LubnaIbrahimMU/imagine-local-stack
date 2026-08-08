@@ -1,24 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-mypro-dev
+  name: app-mypro-uat
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: dev-project
+  project: uat-project
   source:
     repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
-
     targetRevision: HEAD
     path: helm/charts/umbrella-app
     helm:
       valueFiles:
-        - ../../values/values-dev.yml
-
+        - ../../values/values-uat.yml
   destination:
     server: https://kubernetes.default.svc
-    namespace: dev
+    namespace: uat
   syncPolicy:
     automated:
       prune: true

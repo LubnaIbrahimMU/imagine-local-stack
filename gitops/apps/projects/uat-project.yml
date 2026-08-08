@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: uat-project
+  namespace: argocd
+spec:
+  description: Staging / UAT Environment Workloads
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: uat
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

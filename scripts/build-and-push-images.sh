@@ -44,61 +44,62 @@ docker push "${FULL_REGISTRY}/mypro-backend:latest" || true
 docker push "${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}" || true
 docker push "${FULL_REGISTRY}/mypro-backup:latest" || true
 
-# 4. Update automation/schemas/harbor/add-image.json
-ADD_IMAGE_JSON="${PROJECT_ROOT}/automation/schemas/harbor/add-image.json"
-if [ -f "${ADD_IMAGE_JSON}" ]; then
-  echo "--> Updating Harbor automation schema: ${ADD_IMAGE_JSON}"
-  cat <<EOF > "${ADD_IMAGE_JSON}"
-{
-  "temp_dir": "/temp",
-  "provisioning_spec": {
-    "resource_schema_version": 1,
-    "service_profile": "managed-harbor-operations@v1",
-    "metadata": {
-      "subscription_id": "SUB_HARBOR_LOCAL",
-      "vendor_id": "V_2",
-      "service_key_id": "SK_HARBOR"
-    },
-    "action_key": "add_image",
-    "temp_dir": "/temp",
-    "service_config": {
-      "project_name": "${PROJECT_NAME}",
-      "project_public": false,
-      "local_registry": "${REGISTRY_DOMAIN}",
-      "images": [
-        {
-          "source_image": "${FULL_REGISTRY}/mypro-frontend:${VERSION_TAG}",
-          "repository_name": "mypro-frontend",
-          "tag": "${VERSION_TAG}"
-        },
-        {
-          "source_image": "${FULL_REGISTRY}/mypro-backend:${VERSION_TAG}",
-          "repository_name": "mypro-backend",
-          "tag": "${VERSION_TAG}"
-        },
-        {
-          "source_image": "${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}",
-          "repository_name": "mypro-backup",
-          "tag": "${VERSION_TAG}"
-        }
-      ]
-    },
-    "resources": {
-      "VM": [
-        {
-          "publicIP": "${REGISTRY_DOMAIN}",
-          "cloudID": ""
-        }
-      ]
-    },
-    "credentials": {
-      "username": "${HARBOR_USER}",
-      "password": "${HARBOR_PASS}"
-    }
-  }
-}
-EOF
-fi
+# 4. Update automation/schemas/harbor/add-image.json (Optional schema update)
+# ADD_IMAGE_JSON="${PROJECT_ROOT}/automation/schemas/harbor/add-image.json"
+# if [ -f "${ADD_IMAGE_JSON}" ]; then
+#   echo "--> Updating Harbor automation schema: ${ADD_IMAGE_JSON}"
+#   cat <<EOF > "${ADD_IMAGE_JSON}"
+# {
+#   "temp_dir": "/temp",
+#   "provisioning_spec": {
+#     "resource_schema_version": 1,
+#     "service_profile": "managed-harbor-operations@v1",
+#     "metadata": {
+#       "subscription_id": "SUB_HARBOR_LOCAL",
+#       "vendor_id": "V_2",
+#       "service_key_id": "SK_HARBOR"
+#     },
+#     "action_key": "add_image",
+#     "temp_dir": "/temp",
+#     "service_config": {
+#       "project_name": "${PROJECT_NAME}",
+#       "project_public": false,
+#       "local_registry": "${REGISTRY_DOMAIN}",
+#       "images": [
+#         {
+#           "source_image": "${FULL_REGISTRY}/mypro-frontend:${VERSION_TAG}",
+#           "repository_name": "mypro-frontend",
+#           "tag": "${VERSION_TAG}"
+#         },
+#         {
+#           "source_image": "${FULL_REGISTRY}/mypro-backend:${VERSION_TAG}",
+#           "repository_name": "mypro-backend",
+#           "tag": "${VERSION_TAG}"
+#         },
+#         {
+#           "source_image": "${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}",
+#           "repository_name": "mypro-backup",
+#           "tag": "${VERSION_TAG}"
+#         }
+#       ]
+#     },
+#     "resources": {
+#       "VM": [
+#         {
+#           "publicIP": "${REGISTRY_DOMAIN}",
+#           "cloudID": ""
+#         }
+#       ]
+#     },
+#     "credentials": {
+#       "username": "${HARBOR_USER}",
+#       "password": "${HARBOR_PASS}"
+#     }
+#   }
+# }
+# EOF
+# fi
+
 
 # 5. Update Helm Chart Values with new image repositories & tags
 FRONTEND_VALUES="${PROJECT_ROOT}/helm/charts/frontend-service/values.yml"
