@@ -9,8 +9,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 REGISTRY_DOMAIN="${1:-vharbor.aliien.uk}"
 PROJECT_NAME="${2:-pro4}"
-VERSION_TAG="${3:-v2.0.1}"
-
+GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
+VERSION_TAG="${3:-${GIT_SHA}}"
 
 FULL_REGISTRY="${REGISTRY_DOMAIN}/${PROJECT_NAME}"
 
@@ -18,17 +18,17 @@ HARBOR_USER="${HARBOR_USER:-admin}"
 HARBOR_PASS="${HARBOR_PASS:-HarborAdminPassword123}"
 
 echo "======================================================================"
-echo "[BUILD & PUSH] Target Registry: ${FULL_REGISTRY} | Version: ${VERSION_TAG}"
+echo "[BUILD & PUSH] Target Registry: ${FULL_REGISTRY} | Tag (Git SHA): ${VERSION_TAG}"
 echo "======================================================================"
 
 # 1. Build Docker Images
-echo "--> Building Frontend UI Container Image..."
+echo "--> Building Frontend UI Container Image (${VERSION_TAG})..."
 docker build -t "${FULL_REGISTRY}/mypro-frontend:${VERSION_TAG}" -t "${FULL_REGISTRY}/mypro-frontend:latest" "${PROJECT_ROOT}/docker/frontend"
 
-echo "--> Building Backend REST API Container Image..."
+echo "--> Building Backend REST API Container Image (${VERSION_TAG})..."
 docker build -t "${FULL_REGISTRY}/mypro-backend:${VERSION_TAG}" -t "${FULL_REGISTRY}/mypro-backend:latest" "${PROJECT_ROOT}/docker/backend"
 
-echo "--> Building Backup Worker Container Image..."
+echo "--> Building Backup Worker Container Image (${VERSION_TAG})..."
 docker build -t "${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}" -t "${FULL_REGISTRY}/mypro-backup:latest" "${PROJECT_ROOT}/docker/backup"
 
 # 2. Login to Harbor Registry
@@ -105,16 +105,22 @@ FRONTEND_VALUES="${PROJECT_ROOT}/helm/charts/frontend-service/values.yml"
 if [ -f "${FRONTEND_VALUES}" ]; then
   echo "--> Updating Helm frontend image values..."
   sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-frontend|g" "${FRONTEND_VALUES}"
-  sed -i "s|tag: .*|tag: ${VERSION_TAG}|g" "${FRONTEND_VALUES}"
+  sed -i "s|tag: .*|tag: \"${VERSION_TAG}\"|g" "${FRONTEND_VALUES}"
 fi
 
 BACKEND_VALUES="${PROJECT_ROOT}/helm/charts/backend-service/values.yml"
 if [ -f "${BACKEND_VALUES}" ]; then
   echo "--> Updating Helm backend image values..."
   sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-backend|g" "${BACKEND_VALUES}"
-  sed -i "s|tag: .*|tag: ${VERSION_TAG}|g" "${BACKEND_VALUES}"
+  sed -i "s|tag: .*|tag: \"${VERSION_TAG}\"|g" "${BACKEND_VALUES}"
+fi
+
+DB_VALUES="${PROJECT_ROOT}/helm/charts/db-service/values.yml"
+if [ -f "${DB_VALUES}" ]; then
+  echo "--> Updating Helm db-service backup image value..."
+  sed -i "s|image: .*|image: ${FULL_REGISTRY}/mypro-backup:\"${VERSION_TAG}\"|g" "${DB_VALUES}"
 fi
 
 echo "======================================================================"
-echo "[SUCCESS] Container images built, pushed, and manifests updated!"
+echo "[SUCCESS] Container images built with Git SHA '${VERSION_TAG}', pushed to Harbor, and Helm values updated!"
 echo "======================================================================"
