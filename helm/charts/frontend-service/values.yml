@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: vharbor.aliien.uk/pro4/mypro-frontend
-  tag: "53b13f7"
+  tag: "6296fdf0dd8f5bad1a21e54b340ccb96cfb7fa79"
   pullPolicy: IfNotPresent
 
 service:
