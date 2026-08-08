@@ -3,7 +3,6 @@ replicaCount: 2
 image:
   repository: vharbor.aliien.uk/pro4/mypro-frontend
   tag: latest
-
   pullPolicy: IfNotPresent
 
 service:
