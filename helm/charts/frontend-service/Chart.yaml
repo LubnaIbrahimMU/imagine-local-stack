@@ -3,4 +3,4 @@ name: frontend-service
 description: Helm chart for Node.js Express Frontend UI Service
 type: application
 version: 2.0.0
-appVersion: "2.0.0"
+appVersion: "a656f4500f6b726a7e846dffec9a9104e720bf36"
