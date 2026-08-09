@@ -35,7 +35,8 @@ jobs:
   build-and-push-harbor:
     name: Harbor Container Registry Sync
     needs: lint-and-validate
-    runs-on: ubuntu-latest
+    # This runner is on the local lab network and can reach Minikube Harbor.
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
