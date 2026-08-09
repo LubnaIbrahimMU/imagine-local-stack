@@ -12,8 +12,9 @@ echo "=== [1/6] Initializing Minikube Cluster & Storage Directories ==="
 if command -v minikube &>/dev/null; then
     minikube status &>/dev/null || minikube start --cpus=4 --memory=6144 --driver=docker --addons=ingress,metrics-server
     
-    # Clean stale dump files and ensure host directory permissions
-    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo rm -rf /mnt/data/redis/* /mnt/data/minio/* /mnt/data/minio/.* 2>/dev/null || true && sudo chown -R 1000:1000 /mnt/data/minio && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres && sudo chown -R 999:999 /mnt/data/postgres" &>/dev/null || true
+    # Create persistent paths with the UIDs used by the containers. Do not wipe
+    # persistent service data during an idempotent setup run.
+    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo chown -R 999:999 /mnt/data/redis /mnt/data/postgres && sudo chown -R 1000:1000 /mnt/data/minio && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres" &>/dev/null
 fi
 
 echo "--> Applying Platform Namespaces..."
@@ -29,7 +30,7 @@ echo "=== [3/6] Initializing & Unsealing HashiCorp Vault ==="
 "${BASE_DIR}/infrastructure/vault/vault-init.sh"
 
 echo "=== [4/6] Deploying Self-Hosted Harbor Registry & MinIO Storage ==="
-"${BASE_DIR}/infrastructure/harbor/harbor-setup.sh" || true
+"${BASE_DIR}/infrastructure/harbor/harbor-setup.sh"
 
 if [ -f "${BASE_DIR}/infrastructure/minio/minio-setup.sh" ]; then
     chmod +x "${BASE_DIR}/infrastructure/minio/minio-setup.sh"
@@ -53,6 +54,14 @@ echo "=== [6/6] Applying TLS Secrets across All Platform Namespaces ==="
 if [ -f "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh" ]; then
     chmod +x "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh"
     "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh" || true
+fi
+
+# Automatically configure Minikube Docker daemon to trust Harbor registry TLS certificate
+if kubectl get secret aliien-uk-tls -n harbor &>/dev/null; then
+    kubectl get secret aliien-uk-tls -n harbor -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/harbor-ca.crt 2>/dev/null || true
+    minikube ssh "sudo mkdir -p /etc/docker/certs.d/vharbor.aliien.uk" &>/dev/null || true
+    minikube cp /tmp/harbor-ca.crt /tmp/harbor-ca.crt &>/dev/null || true
+    minikube ssh "sudo mv /tmp/harbor-ca.crt /etc/docker/certs.d/vharbor.aliien.uk/ca.crt && sudo systemctl restart docker" &>/dev/null || true
 fi
 
 echo "=== Syncing Reboot Persistence & Local Host Resolution ==="

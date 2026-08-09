@@ -6,7 +6,7 @@ metadata:
   annotations:
     link.argocd.argoproj.io/external-link: https://vgrafana.aliien.uk
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - argocd.argoproj.io/resources-finalizer
 spec:
   project: default
   sources:

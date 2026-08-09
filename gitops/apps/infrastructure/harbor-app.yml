@@ -10,7 +10,10 @@ spec:
   sources:
     - repoURL: https://helm.goharbor.io
       chart: harbor
-      targetRevision: 1.15.x
+      # Keep this exactly aligned with infrastructure/harbor/harbor-setup.sh.
+      # A floating bootstrap chart can write a newer Valkey RDB that the
+      # Argo-managed Redis version cannot read after reconciliation.
+      targetRevision: 1.15.2
       helm:
         valueFiles:
           - $values/infrastructure/harbor/harbor-values.yml
