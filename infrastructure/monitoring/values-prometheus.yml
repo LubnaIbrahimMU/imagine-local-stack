@@ -31,7 +31,11 @@ grafana:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - grafana.mypro.local
+      - vgrafana.aliien.uk
+    tls:
+      - hosts:
+          - vgrafana.aliien.uk
+        secretName: aliien-uk-tls
   persistence:
     enabled: true
     size: 5Gi

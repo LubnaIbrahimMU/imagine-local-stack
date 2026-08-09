@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: app-mypro-dev
   namespace: argocd
+  annotations:
+    link.argocd.argoproj.io/external-link: https://vapp.aliien.uk
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
