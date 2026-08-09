@@ -7,19 +7,28 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  sources:
-    - repoURL: https://charts.min.io/
-      chart: minio
-      targetRevision: 5.0.x
-      helm:
-        values: |
-          mode: standalone
-          replicas: 1
-        valueFiles:
-          - $values/infrastructure/minio/minio-values.yml
-    - repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
-      targetRevision: HEAD
-      ref: values
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: 5.0.x
+    helm:
+      values: |
+        mode: standalone
+        replicas: 1
+        auth:
+          rootUser: admin
+        persistence:
+          enabled: true
+          storageClass: local-storage
+          size: 1Gi
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hostname: vminio.aliien.uk
+          tls:
+            - hosts:
+                - vminio.aliien.uk
+              secretName: aliien-uk-tls
   destination:
     server: https://kubernetes.default.svc
     namespace: minio
