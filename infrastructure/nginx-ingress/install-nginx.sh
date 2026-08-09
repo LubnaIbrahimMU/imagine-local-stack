@@ -24,7 +24,18 @@ else
 fi
 
 echo "Waiting for NGINX Ingress Controller to be ready..."
-# Remove blocking admission webhook to prevent connection refused timeouts during Ingress synchronization
-kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found=true || true
+kubectl rollout status deployment/ingress-nginx-controller \
+  --namespace ingress-nginx \
+  --timeout=5m
+
+# The admission jobs populate the webhook CA bundle. Deleting the webhook here
+# causes Minikube's addon manager to recreate an unsigned definition, after the
+# one-shot patch job has already completed, and all later Ingress applies fail.
+if kubectl get validatingwebhookconfiguration ingress-nginx-admission &>/dev/null; then
+  kubectl wait --for=condition=complete job/ingress-nginx-admission-create \
+    --namespace ingress-nginx --timeout=2m
+  kubectl wait --for=condition=complete job/ingress-nginx-admission-patch \
+    --namespace ingress-nginx --timeout=2m
+fi
 
 echo "=== NGINX Ingress Controller Deployed Successfully ==="

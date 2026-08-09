@@ -28,3 +28,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Prometheus CRDs exceed the client-side apply annotation limit. CRs are
+      # rendered in the same sync as those CRDs, so skip their initial dry-run.
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
