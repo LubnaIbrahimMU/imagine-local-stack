@@ -45,6 +45,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Wait for Harbor Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..60}; do
+            status=$(curl --insecure --silent --show-error \
+              --connect-timeout 5 --max-time 10 \
+              --output /dev/null --write-out '%{http_code}' \
+              "https://${{ env.REGISTRY }}/v2/" || true)
+
+            if [[ "${status}" == "200" || "${status}" == "401" ]]; then
+              echo "Harbor registry is ready (HTTP ${status})."
+              exit 0
+            fi
+
+            echo "Harbor is not ready yet (HTTP ${status:-000}); attempt ${attempt}/60."
+            sleep 5
+          done
+
+          echo "Harbor registry did not become ready within five minutes."
+          exit 1
+
       - name: Log in to Harbor Registry
         uses: docker/login-action@v3
         with:
