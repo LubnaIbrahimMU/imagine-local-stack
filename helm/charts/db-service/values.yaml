@@ -13,7 +13,7 @@ persistence:
 backupCronJob:
   enabled: true
   schedule: "0 */6 * * *"
-  image: vharbor.aliien.uk/pro4/mypro-backup:febef99fd996b3f270676a2953bcfea9851ebcbf
+  image: vharbor.aliien.uk/pro4/mypro-backup:e8d0e0fd30cd2a1a911cf65953e8269cedcb54aa
 
 resources:
   limits:
