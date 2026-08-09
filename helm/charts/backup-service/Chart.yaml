@@ -3,4 +3,4 @@ name: backup-service
 description: MySQL backup CronJob for the MyPro application
 type: application
 version: 2.0.0
-appVersion: "d45d6806674dbb649b222d790b29ed8467e76901"
+appVersion: "dfeab36cee7f7f526ba7637ee9ee4c97ca09a2ed"
