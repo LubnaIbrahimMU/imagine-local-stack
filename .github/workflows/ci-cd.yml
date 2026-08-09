@@ -1,4 +1,4 @@
-name: CloudGate Imagine CI/CD Pipeline
+name: Imagine CI/CD Pipeline
 
 on:
   push:
@@ -8,11 +8,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      version_tag:
-        description: 'Image version tag'
-        required: true
-        default: 'v2.0.1'
 
 permissions:
   contents: write
@@ -21,7 +16,7 @@ permissions:
 env:
   REGISTRY: vharbor.aliien.uk
   HARBOR_PROJECT: pro4
-  IMAGE_TAG: ${{ github.event.inputs.version_tag || github.sha }}
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   lint-and-validate:
@@ -40,29 +35,14 @@ jobs:
   build-and-push-harbor:
     name: Harbor Container Registry Sync
     needs: lint-and-validate
-    runs-on: ubuntu-latest
-    outputs:
-      harbor_available: ${{ steps.harbor_check.outputs.available }}
+    # Harbor is hosted on the local lab network, so this job must run on a
+    # runner that can resolve and reach vharbor.aliien.uk.
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Check Harbor Reachability
-        id: harbor_check
-        run: |
-          echo "Checking connection to Harbor registry at ${{ env.REGISTRY }}..."
-          if nc -z -w 3 ${{ env.REGISTRY }} 443 2>/dev/null || nc -z -w 3 ${{ env.REGISTRY }} 80 2>/dev/null; then
-            echo "HARBOR_AVAILABLE=true" >> $GITHUB_ENV
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "Harbor registry (${{ env.REGISTRY }}) is on a local private network."
-            echo "Local images can be built & pushed directly via: ./scripts/build-and-push-images.sh"
-            echo "HARBOR_AVAILABLE=false" >> $GITHUB_ENV
-            echo "available=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Log in to Harbor Registry
-        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -71,11 +51,9 @@ jobs:
 
 
       - name: Set up Docker Buildx
-        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Frontend Image
-        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/frontend
@@ -85,7 +63,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend:latest
 
       - name: Build and Push Backend Image
-        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/backend
@@ -95,7 +72,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend:latest
 
       - name: Build and Push Backup Image
-        if: env.HARBOR_AVAILABLE == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./docker/backup
@@ -108,9 +84,7 @@ jobs:
     name: Update Helm Image Tags for Argo CD GitOps
     needs: build-and-push-harbor
     runs-on: ubuntu-latest
-    if: >-
-      needs.build-and-push-harbor.outputs.harbor_available == 'true' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
