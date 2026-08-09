@@ -13,7 +13,7 @@ if command -v minikube &>/dev/null; then
     minikube status &>/dev/null || minikube start --cpus=4 --memory=6144 --driver=docker --addons=ingress,metrics-server
     
     # Clean stale dump files and ensure host directory permissions
-    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo rm -rf /mnt/data/redis/* && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres && sudo chown -R 999:999 /mnt/data/postgres" &>/dev/null || true
+    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo rm -rf /mnt/data/redis/* /mnt/data/minio/* /mnt/data/minio/.* 2>/dev/null || true && sudo chown -R 1000:1000 /mnt/data/minio && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres && sudo chown -R 999:999 /mnt/data/postgres" &>/dev/null || true
 fi
 
 echo "--> Applying Platform Namespaces..."

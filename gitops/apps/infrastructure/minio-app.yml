@@ -30,6 +30,14 @@ spec:
           enabled: true
           ingressClassName: nginx
           hostname: vminio.aliien.uk
+          console:
+            enabled: true
+            ingressClassName: nginx
+            hostname: vminio.aliien.uk
+            tls:
+              - hosts:
+                  - vminio.aliien.uk
+                secretName: aliien-uk-tls
           tls:
             - hosts:
                 - vminio.aliien.uk
