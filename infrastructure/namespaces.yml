@@ -49,18 +49,18 @@ metadata:
   name: dev
   labels:
     app.kubernetes.io/part-of: mypro-platform
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: uat
-  labels:
-    app.kubernetes.io/part-of: mypro-platform
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: prd
-  labels:
-    app.kubernetes.io/part-of: mypro-platform
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: uat
+#   labels:
+#     app.kubernetes.io/part-of: mypro-platform
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: prd
+#   labels:
+#     app.kubernetes.io/part-of: mypro-platform
 
