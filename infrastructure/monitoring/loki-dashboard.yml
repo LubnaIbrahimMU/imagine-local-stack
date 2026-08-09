@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  loki-logs.json: |-
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "gridPos": { "h": 20, "w": 24, "x": 0, "y": 0 },
+          "id": 1,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "showLabels": true,
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "Loki" },
+              "editorMode": "builder",
+              "expr": "{namespace=\"$namespace\"}",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Container Logs",
+          "type": "logs"
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["loki", "logs"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": true, "text": "dev", "value": "dev" },
+            "name": "namespace",
+            "query": "label_values(namespace)",
+            "type": "custom",
+            "options": [
+              { "selected": true, "text": "dev", "value": "dev" },
+              { "selected": false, "text": "monitoring", "value": "monitoring" },
+              { "selected": false, "text": "minio", "value": "minio" },
+              { "selected": false, "text": "vault", "value": "vault" }
+            ]
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Kubernetes / Pod Logs (Loki)",
+      "uid": "k8s-pod-logs-loki"
+    }
