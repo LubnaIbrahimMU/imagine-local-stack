@@ -19,10 +19,15 @@ sudo chmod -R 777 /mnt/data 2>/dev/null || true
 MINIO_USER=$(kubectl exec -n vault vault-0 -- vault kv get -field=root-user secret/dev/minio 2>/dev/null || kubectl exec -n vault vault-0 -- vault kv get -field=root-user secret/minio 2>/dev/null || jq -r '.minio.root_user // "admin"' "${SCRIPT_DIR}/../vault/secrets.json" 2>/dev/null || echo "admin")
 MINIO_PASS=$(kubectl exec -n vault vault-0 -- vault kv get -field=root-password secret/dev/minio 2>/dev/null || kubectl exec -n vault vault-0 -- vault kv get -field=root-password secret/minio 2>/dev/null || jq -r '.minio.root_password // "MinioAdminPassword123"' "${SCRIPT_DIR}/../vault/secrets.json" 2>/dev/null || echo "MinioAdminPassword123")
 
-# Dynamically create Kubernetes secret for MinIO
+# Dynamically create Kubernetes secrets for MinIO (supporting both Helm chart and standalone manifests)
 kubectl create secret generic minio-secret -n minio \
   --from-literal=root-user="$MINIO_USER" \
   --from-literal=root-password="$MINIO_PASS" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic minio -n minio \
+  --from-literal=rootUser="$MINIO_USER" \
+  --from-literal=rootPassword="$MINIO_PASS" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 if [ "$PREREQUISITES_ONLY" = "--prerequisites-only" ]; then
