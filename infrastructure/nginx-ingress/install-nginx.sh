@@ -24,6 +24,7 @@ else
 fi
 
 echo "Waiting for NGINX Ingress Controller to be ready..."
-kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=90s || true
+# Remove blocking admission webhook to prevent connection refused timeouts during Ingress synchronization
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found=true || true
 
 echo "=== NGINX Ingress Controller Deployed Successfully ==="

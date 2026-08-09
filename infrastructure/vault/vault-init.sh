@@ -15,12 +15,15 @@ fi
 sudo mkdir -p /mnt/data/vault 2>/dev/null || true
 sudo chmod -R 777 /mnt/data 2>/dev/null || true
 
-helm repo add hashicorp https://helm.releases.hashicorp.com
-helm repo update
-
-helm upgrade --install vault hashicorp/vault \
-  --namespace vault \
-  -f "${SCRIPT_DIR}/vault-values.yml" || true
+if ! kubectl get app vault -n argocd &>/dev/null; then
+  helm repo add hashicorp https://helm.releases.hashicorp.com
+  helm repo update
+  helm upgrade --install vault hashicorp/vault \
+    --namespace vault \
+    -f "${SCRIPT_DIR}/vault-values.yml" || true
+else
+  echo "Argo CD GitOps is active. Vault deployment managed by Argo CD."
+fi
 
 VAULT_POD="vault-0"
 
