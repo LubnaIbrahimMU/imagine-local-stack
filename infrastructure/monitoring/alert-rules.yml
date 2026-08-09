@@ -4,34 +4,68 @@ metadata:
   name: mypro-alert-rules
   namespace: monitoring
   labels:
+    release: monitoring
     role: alert-rules
 spec:
   groups:
-    - name: mypro.rules
+    - name: mypro.alerts
       rules:
-        - alert: HighNodeCPUUsage
-          expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
-          for: 5m
-          labels:
-            severity: critical
-          annotations:
-            summary: "High Node CPU Usage on {{ $labels.instance }}"
-            description: "Node CPU utilization has exceeded 85% for 5 minutes."
-
-        - alert: ContainerMemoryThrottling
-          expr: (sum by (pod, container) (rate(container_cpu_cfs_throttled_periods_total[5m])) / sum by (pod, container) (rate(container_cpu_cfs_periods_total[5m]))) * 100 > 30
+        # 1. cAdvisor - High Container CPU Usage Alert
+        - alert: ContainerHighCPUUsage
+          expr: (sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{container!=""}[5m])) / sum by (namespace, pod, container) (kube_pod_container_resource_limits{resource="cpu"})) * 100 > 85
           for: 3m
           labels:
             severity: warning
           annotations:
-            summary: "Container CPU throttling on pod {{ $labels.pod }}"
-            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} CPU throttling is over 30%."
+            summary: "cAdvisor: High CPU on container {{ $labels.container }} ({{ $labels.pod }})"
+            description: "Container {{ $labels.container }} CPU usage has exceeded 85% limit in namespace {{ $labels.namespace }}."
 
+        # 2. cAdvisor - High Container Memory Usage Alert
+        - alert: ContainerHighMemoryUsage
+          expr: (sum by (namespace, pod, container) (container_memory_working_set_bytes{container!=""}) / sum by (namespace, pod, container) (kube_pod_container_resource_limits{resource="memory"})) * 100 > 85
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "cAdvisor: High Memory on container {{ $labels.container }} ({{ $labels.pod }})"
+            description: "Container {{ $labels.container }} Memory usage is over 85% of limit in namespace {{ $labels.namespace }}."
+
+        # 3. Pod CrashLooping Alert
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[5m]) * 300 > 2
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is CrashLooping"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} restarted more than 2 times in 5 minutes."
+
+        # 4. Host Node High CPU Usage Alert
+        - alert: HighNodeCPUUsage
+          expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High Node CPU Usage on {{ $labels.instance }}"
+            description: "Node CPU utilization has exceeded 85% for 5 minutes."
+
+        # 5. Database Primary Down Alert
         - alert: DatabasePrimaryDown
-          expr: kube_pod_status_ready{condition="true", pod=~".*-db-primary-0"} == 0
+          expr: kube_pod_status_ready{condition="true", pod=~".*-db-primary-.*"} == 0
           for: 1m
           labels:
             severity: critical
           annotations:
             summary: "Database Primary Pod is Down"
-            description: "Primary MySQL pod is unreachable. Failover to Standby initiated."
+            description: "Primary MySQL pod in dev namespace is unreachable. Failover to Standby initiated."
+
+        # 6. MinIO / Persistent Volume Low Storage Alert
+        - alert: LowDiskSpace
+          expr: (node_filesystem_free_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Low Disk Space on Node {{ $labels.instance }}"
+            description: "Filesystem free space is below 15%."
