@@ -22,16 +22,18 @@ helm upgrade --install vault hashicorp/vault \
   --namespace vault \
   -f "${SCRIPT_DIR}/vault-values.yml" || true
 
-echo "Waiting for Vault pod vault-0 to be Running..."
-kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/vault-0 --timeout=120s || true
+VAULT_POD="vault-0"
+
+echo "Waiting for Vault pod $VAULT_POD to be Running..."
+kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/$VAULT_POD --timeout=120s || true
 
 # Check if Vault is initialized inside the container
-IS_INIT=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null | jq -r '.initialized // false' 2>/dev/null || echo "false")
+IS_INIT=$(kubectl exec -n vault $VAULT_POD -- vault status -format=json 2>/dev/null | jq -r '.initialized // false' 2>/dev/null || echo "false")
 
 if [ "$IS_INIT" = "false" ]; then
     echo "Vault is NOT initialized. Initializing Vault operator..."
     rm -f "$KEYS_FILE" "${KEYS_FILE}.tmp"
-    kubectl exec -n vault vault-0 -- vault operator init -key-shares=5 -key-threshold=3 -format=json > "${KEYS_FILE}.tmp" 2>/dev/null || true
+    kubectl exec -n vault $VAULT_POD -- vault operator init -key-shares=5 -key-threshold=3 -format=json > "${KEYS_FILE}.tmp" 2>/dev/null || true
     if [ -s "${KEYS_FILE}.tmp" ]; then
         mv "${KEYS_FILE}.tmp" "$KEYS_FILE"
         echo "Vault initialization keys saved securely to $KEYS_FILE"
@@ -47,33 +49,33 @@ ROOT_TOKEN=$(jq -r '.root_token' "$KEYS_FILE" 2>/dev/null || echo "")
 
 if [ -n "$UNSEAL_KEY_1" ]; then
     echo "Unsealing Vault..."
-    kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY_1" || true
-    kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY_2" || true
-    kubectl exec -n vault vault-0 -- vault operator unseal "$UNSEAL_KEY_3" || true
+    kubectl exec -n vault $VAULT_POD -- vault operator unseal "$UNSEAL_KEY_1" || true
+    kubectl exec -n vault $VAULT_POD -- vault operator unseal "$UNSEAL_KEY_2" || true
+    kubectl exec -n vault $VAULT_POD -- vault operator unseal "$UNSEAL_KEY_3" || true
 fi
 
 if [ -n "$ROOT_TOKEN" ]; then
     echo "Logging into Vault with Root Token..."
-    kubectl exec -n vault vault-0 -- vault login "$ROOT_TOKEN" || true
+    kubectl exec -n vault $VAULT_POD -- vault login "$ROOT_TOKEN" || true
 
     echo "Enabling KV-v2 Secrets Engine at secret/..."
-    kubectl exec -n vault vault-0 -- vault secrets enable -path=secret kv-v2 2>/dev/null || true
+    kubectl exec -n vault $VAULT_POD -- vault secrets enable -path=secret kv-v2 2>/dev/null || true
 
     echo "Writing Database & Service Secrets..."
     bash "${SCRIPT_DIR}/seed-vault-secrets.sh" || true
 
     echo "Applying Vault Access Policies..."
-    kubectl exec -n vault -i vault-0 -- vault policy write app-policy - < "${SCRIPT_DIR}/policies/app-policy.hcl" || true
+    kubectl exec -n vault -i $VAULT_POD -- vault policy write app-policy - < "${SCRIPT_DIR}/policies/app-policy.hcl" || true
 
     echo "Enabling Kubernetes Authentication Engine..."
-    kubectl exec -n vault vault-0 -- vault auth enable kubernetes 2>/dev/null || true
+    kubectl exec -n vault $VAULT_POD -- vault auth enable kubernetes 2>/dev/null || true
 
     echo "Configuring Kubernetes Authentication Engine..."
-    kubectl exec -n vault vault-0 -- vault write auth/kubernetes/config \
+    kubectl exec -n vault $VAULT_POD -- vault write auth/kubernetes/config \
         kubernetes_host="https://kubernetes.default.svc:443" || true
 
     echo "Binding Vault Role 'app-role' to Application ServiceAccounts..."
-    kubectl exec -n vault vault-0 -- vault write auth/kubernetes/role/app-role \
+    kubectl exec -n vault $VAULT_POD -- vault write auth/kubernetes/role/app-role \
         bound_service_account_names="*-backend-sa,default,backend-service-sa" \
         bound_service_account_namespaces="default,dev,uat,prd" \
         policies="app-policy" \
