@@ -1,7 +1,6 @@
 auth:
   rootUser: admin
 
-
 persistence:
   enabled: true
   storageClass: local-storage
@@ -11,9 +10,7 @@ ingress:
   enabled: true
   ingressClassName: nginx
   hostname: vminio.aliien.uk
-  tls: true
-  selfSigned: false
-  extraTls:
+  tls:
     - hosts:
         - vminio.aliien.uk
       secretName: aliien-uk-tls
