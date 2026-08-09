@@ -23,6 +23,7 @@ spec:
           rootUser: admin
         persistence:
           enabled: true
+          existingClaim: pvc-minio-data
           storageClass: local-storage
           size: 1Gi
         ingress:
