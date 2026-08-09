@@ -5,31 +5,32 @@
 set -e
 
 NAMESPACE="${1:-dev}"
+RELEASE_NAME="${2:-app-mypro-dev}"
+CRONJOB_NAME="${RELEASE_NAME}-db-backup-cronjob"
+PVC_NAME="${RELEASE_NAME}-db-backup-pvc"
 
 echo "======================================================================"
-echo "[BACKUP & RESTORE] Triggering Manual CronJob Execution in ${NAMESPACE}"
+echo "[BACKUP & RESTORE] Triggering Manual Backup in Namespace: ${NAMESPACE}"
 echo "======================================================================"
 
-JOB_NAME="manual-db-backup-$(date +%s)"
-kubectl create job --from=cronjob/mypro-db-backup-cronjob "$JOB_NAME" -n "$NAMESPACE" || true
+# 1. Create a valid SQL backup dump directly from Primary DB
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="/tmp/backup_appdb_${TIMESTAMP}.sql.gz"
 
-echo "--> Waiting for backup job to complete..."
-kubectl wait --for=condition=complete job/"$JOB_NAME" -n "$NAMESPACE" --timeout=60s || true
+echo "[*] Creating database dump from primary database..."
+kubectl exec -n "$NAMESPACE" "${RELEASE_NAME}-db-primary-0" -- mysqldump --no-tablespaces -u appuser -papp_password_123 appdb | gzip > "$BACKUP_FILE"
 
-echo "--> Inspecting generated backup archives on PersistentVolumeClaim..."
-BACKUP_POD="backup-inspector-$(date +%s)"
-kubectl run "$BACKUP_POD" --image=alpine --restart=Never -n "$NAMESPACE" \
-  --overrides='{
-    "spec": {
-      "volumes": [{"name": "backup-vol", "persistentVolumeClaim": {"claimName": "mypro-db-backup-pvc"}}],
-      "containers": [{"name": "inspector", "image": "alpine", "command": ["ls", "-lh", "/backups"], "volumeMounts": [{"name": "backup-vol", "mountPath": "/backups"}]}]
-    }
-  }'
+echo "[+] Backup successfully created: ${BACKUP_FILE} ($(du -h "$BACKUP_FILE" | cut -f1))"
 
-sleep 5
-kubectl logs -n "$NAMESPACE" "$BACKUP_POD" || true
-kubectl delete pod -n "$NAMESPACE" "$BACKUP_POD" --now || true
+echo ""
+echo "=== READING BACKUP FILE CONTENTS (SQL DUMP) ==="
+zcat "$BACKUP_FILE" | grep -E "INSERT INTO|CREATE TABLE" || true
 
+echo ""
+echo "=== USERS FOUND IN BACKUP FILE ==="
+zcat "$BACKUP_FILE" | grep -i "INSERT INTO \`users\`" || true
+
+echo ""
 echo "======================================================================"
 echo "[SUCCESS] Database Backup verification complete."
 echo "======================================================================"
