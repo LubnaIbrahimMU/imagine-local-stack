@@ -59,7 +59,11 @@ push-images:
 	@chmod +x ./scripts/build-and-push-images.sh && ./scripts/build-and-push-images.sh
 
 deploy-dev:
-	@helm upgrade --install mypro-dev ./helm/charts/umbrella-app -n dev --create-namespace -f ./helm/values/values-dev.yml
+	@./scripts/run-app.sh deploy
+
+run-app:
+	@./scripts/run-app.sh deploy
+
 
 # deploy-uat:
 # 	@helm upgrade --install mypro-uat ./helm/charts/umbrella-app -n uat --create-namespace -f ./helm/values/values-uat.yml

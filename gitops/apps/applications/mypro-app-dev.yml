@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mypro-backup-dev
+  name: app-mypro-dev
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    link.argocd.argoproj.io/external-link: https://vapp.aliien.uk
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,9 +12,11 @@ spec:
   source:
     repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
     targetRevision: HEAD
-    path: helm/charts/backup-service
+    path: helm/charts/umbrella-app
     helm:
       releaseName: app-mypro-dev
+      valueFiles:
+        - ../../values/values-dev.yml
   destination:
     server: https://kubernetes.default.svc
     namespace: dev
