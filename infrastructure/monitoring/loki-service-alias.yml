@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  type: ExternalName
+  externalName: loki-stack.monitoring.svc.cluster.local
+  ports:
+    - name: http-metrics
+      port: 3100
+      targetPort: 3100
