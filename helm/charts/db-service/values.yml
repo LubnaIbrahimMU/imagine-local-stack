@@ -1,5 +1,5 @@
 mysql:
-  image: vharbor.aliien.uk/pro4/mypro-backup:latest
+  image: vharbor.aliien.uk/pro4/mypro-backup:"4ef12e6c7f225e0b0d16873dcae926f63e4b27c1"
   existingSecret: mypro-dev-db-secret
 
 persistence:
@@ -10,7 +10,7 @@ persistence:
 backupCronJob:
   enabled: true
   schedule: "0 */6 * * *"
-  image: vharbor.aliien.uk/pro4/mypro-backup:latest
+  image: vharbor.aliien.uk/pro4/mypro-backup:"4ef12e6c7f225e0b0d16873dcae926f63e4b27c1"
 
 resources:
   limits:
