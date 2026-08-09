@@ -1,6 +1,6 @@
 image:
   repository: vharbor.aliien.uk/pro4/mypro-backup
-  tag: "107ecf388bf1748179d84dd48fb5bf6ec7747466"
+  tag: "b85b4e2dc406c2ba5b199cf56cc97835ace58a08"
   pullPolicy: IfNotPresent
 
 imagePullSecrets:
