@@ -19,7 +19,7 @@ app.get("/health", (req, res) => {
     res.json({ status: "healthy", service: "frontend-ui", version: "v2.0.0" });
 });
 
-app.all(["/api/users", "/api/users/:id"], async (req, res) => {
+app.all("/api/*", async (req, res) => {
     const targetUrl = new URL(req.originalUrl, backendUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);

@@ -262,6 +262,38 @@
             </section>
         </div>
 
+        <div class="layout" style="margin-top: 24px;">
+            <section>
+                <h2>MinIO Vault Storage</h2>
+                <form id="storage-form">
+                    <label for="filename">File / Photo Name</label>
+                    <input id="filename" name="filename" placeholder="e.g. document.txt or photo.jpg" required>
+
+                    <label for="content">File Content / Text</label>
+                    <input id="content" name="content" placeholder="e.g. Hello Vault & MinIO!" required>
+
+                    <button type="submit" style="background: #a855f7; color: #fff;">Upload to MinIO</button>
+                </form>
+            </section>
+
+            <section>
+                <div class="toolbar">
+                    <h2>MinIO Uploaded Files</h2>
+                    <button id="refresh-files" class="secondary" type="button" style="height: 32px; font-size: 12px;">Refresh Files</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Size</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-table"></tbody>
+                </table>
+            </section>
+        </div>
+
         <div class="meta-info">
             <span id="backend-server">Backend Instance: Loading...</span>
             <span id="cache-status">Cache: -</span>
@@ -271,10 +303,12 @@
 
     <script>
         const usersTable = document.querySelector("#users");
+        const filesTable = document.querySelector("#files-table");
         const statusEl = document.querySelector("#status");
         const statusDot = document.querySelector("#status-dot");
         const countEl = document.querySelector("#count");
         const form = document.querySelector("#user-form");
+        const storageForm = document.querySelector("#storage-form");
 
         function setStatus(msg, state = "warning") {
             statusEl.textContent = msg;
@@ -324,6 +358,53 @@
             }
         }
 
+        async function loadFiles() {
+            try {
+                const response = await fetch("/api/storage/files");
+                if (!response.ok) return;
+                const data = await response.json();
+                filesTable.innerHTML = "";
+
+                for (const file of data.files || []) {
+                    const row = document.createElement("tr");
+
+                    const nameCell = document.createElement("td");
+                    nameCell.textContent = file.filename;
+
+                    const sizeCell = document.createElement("td");
+                    sizeCell.textContent = `${file.size} B`;
+
+                    const actionCell = document.createElement("td");
+                    const viewBtn = document.createElement("button");
+                    viewBtn.className = "secondary";
+                    viewBtn.style.height = "30px";
+                    viewBtn.style.padding = "0 8px";
+                    viewBtn.style.fontSize = "12px";
+                    viewBtn.style.marginRight = "6px";
+                    viewBtn.textContent = "View";
+                    viewBtn.onclick = async () => {
+                        const res = await fetch(`/api/storage/files/${file.filename}`);
+                        const fileData = await res.json();
+                        alert(`File: ${file.filename}\nContent:\n${fileData.content || 'N/A'}`);
+                    };
+
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "danger";
+                    delBtn.textContent = "Delete";
+                    delBtn.onclick = async () => {
+                        await fetch(`/api/storage/files/${file.filename}`, { method: "DELETE" });
+                        await loadFiles();
+                    };
+
+                    actionCell.append(viewBtn, delBtn);
+                    row.append(nameCell, sizeCell, actionCell);
+                    filesTable.appendChild(row);
+                }
+            } catch (err) {
+                console.error("Error loading MinIO files:", err);
+            }
+        }
+
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
             const formData = new FormData(form);
@@ -345,6 +426,25 @@
             await loadUsers();
         });
 
+        storageForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(storageForm);
+            const payload = { filename: formData.get("filename"), content: formData.get("content") };
+
+            const res = await fetch("/api/storage/upload", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                storageForm.reset();
+                await loadFiles();
+            } else {
+                alert("MinIO upload failed");
+            }
+        });
+
         usersTable.addEventListener("click", async (e) => {
             const btn = e.target.closest("button[data-id]");
             if (!btn) return;
@@ -355,7 +455,9 @@
         });
 
         document.querySelector("#refresh").addEventListener("click", loadUsers);
+        document.querySelector("#refresh-files").addEventListener("click", loadFiles);
         loadUsers();
+        loadFiles();
     </script>
 </body>
 </html>
