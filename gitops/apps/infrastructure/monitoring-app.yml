@@ -7,13 +7,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: kube-prometheus-stack
-    targetRevision: 58.x
-    helm:
-      valueFiles:
-        - https://raw.githubusercontent.com/LubnaIbrahimMU/imagine-local-stack/main/infrastructure/monitoring/values-prometheus.yml
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 58.x
+      helm:
+        valueFiles:
+          - $values/infrastructure/monitoring/values-prometheus.yml
+    - repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

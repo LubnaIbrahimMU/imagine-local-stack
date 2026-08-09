@@ -10,6 +10,8 @@ cloudflare.ini
 *.ini
 .env
 .env.local
+tls-secrets.yaml
+infrastructure/cert-manager/tls-secrets.yaml
 
 # Helm dependencies
 charts/*.tgz

@@ -10,8 +10,10 @@ BASE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 echo "=== [1/2] Applying Platform Namespaces ==="
 kubectl apply -f "${BASE_DIR}/infrastructure/namespaces.yml"
 
-echo "=== [2/3] Installing Argo CD Core Controller & CRDs ==="
-kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# Option A: Install from local offline manifest file
+kubectl apply --server-side --force-conflicts -n argocd -f "${SCRIPT_DIR}/argocd-manifest.yml"
+# Option B: Install directly from GitHub remote URL
+# kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 echo "=== [3/3] Creating Argo CD Ingress Routing ==="
 kubectl apply -f "${SCRIPT_DIR}/argocd-ingress.yml"

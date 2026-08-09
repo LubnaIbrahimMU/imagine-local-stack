@@ -9,6 +9,11 @@ expose:
       core: vharbor.aliien.uk
     controller: default
     className: nginx
+    secretName: aliien-uk-tls
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
 
 externalURL: https://vharbor.aliien.uk
 

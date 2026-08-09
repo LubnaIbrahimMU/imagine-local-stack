@@ -7,13 +7,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    repoURL: https://helm.releases.hashicorp.com
-    chart: vault
-    targetRevision: 0.28.x
-    helm:
-      valueFiles:
-        - https://raw.githubusercontent.com/LubnaIbrahimMU/imagine-local-stack/main/infrastructure/vault/vault-values.yml
+  sources:
+    - repoURL: https://helm.releases.hashicorp.com
+      chart: vault
+      targetRevision: 0.28.x
+      helm:
+        valueFiles:
+          - $values/infrastructure/vault/vault-values.yml
+    - repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: vault

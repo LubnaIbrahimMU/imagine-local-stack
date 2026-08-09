@@ -22,20 +22,22 @@ helm upgrade --install vault hashicorp/vault \
   --namespace vault \
   -f "${SCRIPT_DIR}/vault-values.yml" || true
 
-
 echo "Waiting for Vault pod vault-0 to be Running..."
 kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/vault-0 --timeout=120s || true
 
-# If keys file is missing or empty, initialize Vault
-if [ ! -s "$KEYS_FILE" ]; then
-    echo "Initializing Vault operator..."
+# Check if Vault is initialized inside the container
+IS_INIT=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null | jq -r '.initialized // false' 2>/dev/null || echo "false")
+
+if [ "$IS_INIT" = "false" ]; then
+    echo "Vault is NOT initialized. Initializing Vault operator..."
+    rm -f "$KEYS_FILE" "${KEYS_FILE}.tmp"
     kubectl exec -n vault vault-0 -- vault operator init -key-shares=5 -key-threshold=3 -format=json > "${KEYS_FILE}.tmp" 2>/dev/null || true
     if [ -s "${KEYS_FILE}.tmp" ]; then
         mv "${KEYS_FILE}.tmp" "$KEYS_FILE"
         echo "Vault initialization keys saved securely to $KEYS_FILE"
     fi
 else
-    echo "Vault initialization keys already exist in $KEYS_FILE"
+    echo "Vault is already initialized."
 fi
 
 UNSEAL_KEY_1=$(jq -r '.unseal_keys_b64[0]' "$KEYS_FILE" 2>/dev/null || echo "")

@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-REGISTRY="${1:-harbor.mypro.local/library}"
+REGISTRY="${1:-vharbor.aliien.uk/library}"
 VERSION="${2:-v2.0.0}"
 
 echo "======================================================================"
