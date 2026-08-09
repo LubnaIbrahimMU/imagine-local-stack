@@ -39,6 +39,12 @@ grafana:
   persistence:
     enabled: true
     size: 5Gi
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-stack.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
 
 alertmanager:
   enabled: true
