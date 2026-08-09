@@ -27,6 +27,8 @@ spec:
           storageClass: local-storage
           size: 1Gi
         ingress:
+          enabled: false
+        consoleIngress:
           enabled: true
           ingressClassName: nginx
           hosts:
