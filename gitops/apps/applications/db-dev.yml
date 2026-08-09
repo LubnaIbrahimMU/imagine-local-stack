@@ -1,10 +1,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-mypro-dev
+  name: app-db-dev
   namespace: argocd
-  annotations:
-    link.argocd.argoproj.io/external-link: https://vapp.aliien.uk
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,11 +10,7 @@ spec:
   source:
     repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
     targetRevision: HEAD
-    path: helm/charts/umbrella-app
-    helm:
-      releaseName: app-mypro-dev
-      valueFiles:
-        - ../../values/values-dev.yml
+    path: helm/charts/db-service
   destination:
     server: https://kubernetes.default.svc
     namespace: dev
@@ -26,8 +20,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/template/metadata/annotations
