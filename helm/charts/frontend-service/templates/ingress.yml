@@ -4,6 +4,7 @@ kind: Ingress
 metadata:
   name: {{ .Release.Name }}-frontend-ingress
   annotations:
+    link.argocd.argoproj.io/external-link: "https://{{ .Values.ingress.host }}"
     kubernetes.io/ingress.class: {{ .Values.ingress.className | quote }}
     nginx.ingress.kubernetes.io/proxy-body-size: "8m"
     nginx.ingress.kubernetes.io/ssl-redirect: {{ .Values.ingress.tls | quote }}
