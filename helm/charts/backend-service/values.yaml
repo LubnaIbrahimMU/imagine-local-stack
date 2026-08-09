@@ -35,8 +35,8 @@ env:
   redisPort: "6379"
   cacheTtl: "30"
   logLevel: INFO
-  minioEndpoint: "http://minio-service.minio.svc.cluster.local:9000"
-  minioBucket: "mypro-bucket"
+  minioEndpoint: "http://minio.minio.svc.cluster.local:9000"
+  minioBucket: "app-backups"
 
 resources:
   limits:

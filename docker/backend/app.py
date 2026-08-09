@@ -72,9 +72,9 @@ except Exception as r_err:
     redis_client = None
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://minio.minio.svc.cluster.local:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "NewRootPassword123$")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET", "minioooo")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "app-backups")
 
 minio_client = None
 try:
@@ -85,6 +85,15 @@ try:
         aws_secret_access_key=MINIO_SECRET_KEY,
         config=boto3.session.Config(signature_version="s3v4")
     )
+    try:
+        minio_client.head_bucket(Bucket=MINIO_BUCKET)
+    except Exception:
+        try:
+            minio_client.create_bucket(Bucket=MINIO_BUCKET)
+            logger.info(f"Auto-created MinIO bucket '{MINIO_BUCKET}'")
+        except Exception as b_err:
+            logger.warning(f"Notice: Bucket setup warning for '{MINIO_BUCKET}': {b_err}")
+
     logger.info(f"Configured MinIO storage client for bucket '{MINIO_BUCKET}' at {MINIO_ENDPOINT}")
 except Exception as minio_err:
     logger.warning(f"Could not initialize MinIO storage client for {MINIO_ENDPOINT}: {minio_err}")
