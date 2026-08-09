@@ -1,6 +1,11 @@
 mode: standalone
 replicas: 1
 
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+
 auth:
   rootUser: admin
 
