@@ -24,11 +24,13 @@ kubectl create secret generic minio-secret -n minio \
   --from-literal=root-password="$MINIO_PASS" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# Cleanup any stale Bitnami releases if present
-helm uninstall minio -n minio 2>/dev/null || true
-
-kubectl apply -f "${SCRIPT_DIR}/../pv-local.yml"
-kubectl apply -f "${SCRIPT_DIR}/minio-deployment.yml"
+if ! kubectl get app minio -n argocd &>/dev/null; then
+  kubectl delete deployment minio -n minio 2>/dev/null || true
+  kubectl apply -f "${SCRIPT_DIR}/../pv-local.yml"
+  kubectl apply -f "${SCRIPT_DIR}/minio-deployment.yml"
+else
+  echo "Argo CD GitOps is active. MinIO deployment managed by Argo CD."
+fi
 
 
 echo "=== MinIO Object Storage Deployed Successfully ==="
