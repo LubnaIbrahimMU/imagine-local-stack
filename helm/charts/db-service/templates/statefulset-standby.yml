@@ -35,22 +35,22 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-db-secret
+                  name: {{ .Values.mysql.existingSecret | default (printf "%s-db-secret" .Release.Name) }}
                   key: db-root-password
             - name: MYSQL_DATABASE
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-db-secret
+                  name: {{ .Values.mysql.existingSecret | default (printf "%s-db-secret" .Release.Name) }}
                   key: db-name
             - name: MYSQL_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-db-secret
+                  name: {{ .Values.mysql.existingSecret | default (printf "%s-db-secret" .Release.Name) }}
                   key: db-user
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-db-secret
+                  name: {{ .Values.mysql.existingSecret | default (printf "%s-db-secret" .Release.Name) }}
                   key: db-password
           livenessProbe:
             exec:

@@ -11,5 +11,8 @@ dependencies:
 - name: redis-service
   repository: file://../redis-service
   version: 2.0.0
-digest: sha256:6cf8b6ce50efc8c3ca581ba7de5b9963c65c7556a82211999517feb0ccebcdd5
-generated: "2026-08-09T11:34:37.609086755+03:00"
+- name: backup-service
+  repository: file://../backup-service
+  version: 2.0.0
+digest: sha256:05a4201f125567f3dbb86efb54af6d0b3a79c6a207b2dd8f86e40a7b52b81797
+generated: "2026-08-09T13:14:04.308918097+03:00"

@@ -21,6 +21,7 @@ env:
 jobs:
   lint-and-validate:
     name: Lint & Validate Code
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -31,6 +32,9 @@ jobs:
           helm lint helm/charts/umbrella-app || true
           helm lint helm/charts/frontend-service || true
           helm lint helm/charts/backend-service || true
+          helm lint helm/charts/db-service || true
+          helm lint helm/charts/redis-service || true
+          helm lint helm/charts/backup-service || true
 
   build-and-push-harbor:
     name: Harbor Container Registry Sync
@@ -82,15 +86,22 @@ jobs:
         run: |
           echo "Updating Helm image tags and Chart appVersion to commit SHA: ${{ env.IMAGE_TAG }}"
           # ./scripts/build-and-push-images.sh "${{ env.REGISTRY }}" "${{ env.HARBOR_PROJECT }}" "${{ env.IMAGE_TAG }}"
-          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|g" helm/charts/frontend-service/values.yaml
-          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|" helm/charts/frontend-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${{ env.IMAGE_TAG }}\"|" helm/charts/frontend-service/values.yaml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/Chart.yaml
           
-          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|g" helm/charts/backend-service/values.yaml
-          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|" helm/charts/backend-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${{ env.IMAGE_TAG }}\"|" helm/charts/backend-service/values.yaml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/Chart.yaml
 
-          sed -i "/^backupCronJob:/,/^[^[:space:]]/ s|^  image: .*|  image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}|" helm/charts/db-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup|" helm/charts/backup-service/values.yaml
+          sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${{ env.IMAGE_TAG }}\"|" helm/charts/backup-service/values.yaml
+          sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backup-service/Chart.yaml
+
+          # External images are pinned and must never receive a Git SHA.
+          grep -q '^  image: mysql:8.0$' helm/charts/db-service/values.yaml
+          grep -q '^  repository: redis$' helm/charts/redis-service/values.yaml
+          grep -q '^  tag: 7.2-alpine$' helm/charts/redis-service/values.yaml
 
           helm dependency update --skip-refresh helm/charts/umbrella-app
 
@@ -100,7 +111,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase || true
           git add helm/charts/
-          git commit -m "chore(gitops): update frontend & backend image tags to ${{ env.IMAGE_TAG }}" || echo "No changes to commit"
+          git commit -m "chore(gitops): update application image tags to ${{ env.IMAGE_TAG }} [skip ci]" || echo "No changes to commit"
           git push origin HEAD
 
 

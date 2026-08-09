@@ -90,7 +90,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-db-secret
+                  name: {{ .Values.env.dbSecretName }}
                   key: db-password
 
           livenessProbe:

@@ -13,8 +13,8 @@ backend-service:
 db-service:
   mysql:
     database: appdb
-  backupCronJob:
-    enabled: true
+
+backup-service: {}
 
 redis-service:
   replicaCount: 1

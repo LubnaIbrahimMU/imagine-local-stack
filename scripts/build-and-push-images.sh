@@ -148,22 +148,29 @@ docker push "${FULL_REGISTRY}/mypro-backup:latest"
 FRONTEND_VALUES="${PROJECT_ROOT}/helm/charts/frontend-service/values.yaml"
 if [ -f "${FRONTEND_VALUES}" ]; then
   echo "--> Updating Helm frontend image values..."
-  sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-frontend|g" "${FRONTEND_VALUES}"
-  sed -i "s|tag: .*|tag: \"${VERSION_TAG}\"|g" "${FRONTEND_VALUES}"
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${FULL_REGISTRY}/mypro-frontend|" "${FRONTEND_VALUES}"
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${VERSION_TAG}\"|" "${FRONTEND_VALUES}"
 fi
 
 BACKEND_VALUES="${PROJECT_ROOT}/helm/charts/backend-service/values.yaml"
 if [ -f "${BACKEND_VALUES}" ]; then
   echo "--> Updating Helm backend image values..."
-  sed -i "s|repository: .*|repository: ${FULL_REGISTRY}/mypro-backend|g" "${BACKEND_VALUES}"
-  sed -i "s|tag: .*|tag: \"${VERSION_TAG}\"|g" "${BACKEND_VALUES}"
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${FULL_REGISTRY}/mypro-backend|" "${BACKEND_VALUES}"
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${VERSION_TAG}\"|" "${BACKEND_VALUES}"
 fi
 
-DB_VALUES="${PROJECT_ROOT}/helm/charts/db-service/values.yaml"
-if [ -f "${DB_VALUES}" ]; then
-  echo "--> Updating Helm db-service backup image value..."
-  sed -i "/^backupCronJob:/,/^[^[:space:]]/ s|^  image: .*|  image: ${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}|" "${DB_VALUES}"
+BACKUP_VALUES="${PROJECT_ROOT}/helm/charts/backup-service/values.yaml"
+if [ -f "${BACKUP_VALUES}" ]; then
+  echo "--> Updating Helm backup-service image value..."
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  repository: .*|  repository: ${FULL_REGISTRY}/mypro-backup|" "${BACKUP_VALUES}"
+  sed -i "/^image:/,/^[^[:space:]]/ s|^  tag: .*|  tag: \"${VERSION_TAG}\"|" "${BACKUP_VALUES}"
+  sed -i "s|appVersion: .*|appVersion: \"${VERSION_TAG}\"|" "${PROJECT_ROOT}/helm/charts/backup-service/Chart.yaml"
 fi
+
+# Guard fixed upstream images against accidental broad replacements.
+grep -q '^  image: mysql:8.0$' "${PROJECT_ROOT}/helm/charts/db-service/values.yaml"
+grep -q '^  repository: redis$' "${PROJECT_ROOT}/helm/charts/redis-service/values.yaml"
+grep -q '^  tag: 7.2-alpine$' "${PROJECT_ROOT}/helm/charts/redis-service/values.yaml"
 
 # Argo CD renders the committed dependency archives under umbrella-app/charts.
 # Repackage them after changing subchart values so GitOps sees the new tags.

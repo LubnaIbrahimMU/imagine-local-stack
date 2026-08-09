@@ -1,25 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: infrastructure-external-secrets
+  name: mypro-frontend-dev
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    link.argocd.argoproj.io/external-link: http://app.dev.mypro.local
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: dev-project
   source:
-    repoURL: https://charts.external-secrets.io
-    chart: external-secrets
-    targetRevision: 0.9.x
+    repoURL: https://github.com/LubnaIbrahimMU/imagine-local-stack.git
+    targetRevision: HEAD
+    path: helm/charts/frontend-service
     helm:
-      parameters:
-        - name: installCRDs
-          value: "true"
+      releaseName: app-mypro-dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-secrets
+    namespace: dev
   syncPolicy:
     automated:
       prune: true

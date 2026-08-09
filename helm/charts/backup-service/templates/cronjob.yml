@@ -1,19 +1,22 @@
-{{- if .Values.backupCronJob.enabled -}}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ .Release.Name }}-db-backup-cronjob
   labels:
-    app.kubernetes.io/name: db-service
+    app.kubernetes.io/name: backup-service
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  schedule: {{ .Values.backupCronJob.schedule | quote }}
+  schedule: {{ .Values.schedule | quote }}
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: backup-service
+            app.kubernetes.io/instance: {{ .Release.Name }}
         spec:
           restartPolicy: OnFailure
           {{- with .Values.imagePullSecrets }}
@@ -22,25 +25,25 @@ spec:
           {{- end }}
           containers:
             - name: db-backup
-              image: {{ .Values.backupCronJob.image | quote }}
-              imagePullPolicy: IfNotPresent
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
               env:
                 - name: DB_HOST
-                  value: {{ .Release.Name }}-db-primary
+                  value: {{ .Values.database.host | quote }}
                 - name: DB_USER
                   valueFrom:
                     secretKeyRef:
-                      name: {{ .Release.Name }}-db-secret
+                      name: {{ .Values.database.secretName }}
                       key: db-user
                 - name: DB_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: {{ .Release.Name }}-db-secret
+                      name: {{ .Values.database.secretName }}
                       key: db-password
                 - name: DB_NAME
                   valueFrom:
                     secretKeyRef:
-                      name: {{ .Release.Name }}-db-secret
+                      name: {{ .Values.database.secretName }}
                       key: db-name
                 - name: SINGLE_SHOT
                   value: "true"
@@ -57,12 +60,14 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-db-backup-pvc
   labels:
-    app.kubernetes.io/name: db-service
+    app.kubernetes.io/name: backup-service
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- with .Values.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
   resources:
     requests:
-      storage: 10Gi
-{{- end }}
+      storage: {{ .Values.persistence.size }}

@@ -24,5 +24,9 @@ db-service:
   persistence:
     size: 2Gi
 
+backup-service:
+  persistence:
+    size: 10Gi
+
 redis-service:
   replicaCount: 1

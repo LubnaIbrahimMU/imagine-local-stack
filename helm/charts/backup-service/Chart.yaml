@@ -1,0 +1,6 @@
+apiVersion: v2
+name: backup-service
+description: MySQL backup CronJob for the MyPro application
+type: application
+version: 2.0.0
+appVersion: "e8d0e0fd30cd2a1a911cf65953e8269cedcb54aa"

@@ -39,6 +39,13 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/part-of: mypro-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: external-secrets
   labels:
     app.kubernetes.io/part-of: mypro-platform
@@ -63,4 +70,3 @@ metadata:
 #   name: prd
 #   labels:
 #     app.kubernetes.io/part-of: mypro-platform
-

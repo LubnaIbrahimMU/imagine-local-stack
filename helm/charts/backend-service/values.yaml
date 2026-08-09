@@ -22,6 +22,7 @@ env:
   dbPort: "3306"
   dbName: appdb
   dbUser: appuser
+  dbSecretName: mypro-dev-db-secret
   dbStandbyHost: db-standby
   redisHost: redis-service
   redisPort: "6379"
