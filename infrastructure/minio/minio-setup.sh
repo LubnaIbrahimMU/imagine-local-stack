@@ -2,6 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PREREQUISITES_ONLY="${1:-false}"
 
 echo "=== Deploying Self-Hosted MinIO Object Storage ==="
 
@@ -23,6 +24,11 @@ kubectl create secret generic minio-secret -n minio \
   --from-literal=root-user="$MINIO_USER" \
   --from-literal=root-password="$MINIO_PASS" \
   --dry-run=client -o yaml | kubectl apply -f -
+
+if [ "$PREREQUISITES_ONLY" = "--prerequisites-only" ]; then
+  echo "MinIO storage and credentials are ready; Argo CD will deploy MinIO."
+  exit 0
+fi
 
 if ! kubectl get app minio -n argocd &>/dev/null; then
   kubectl delete deployment minio -n minio 2>/dev/null || true

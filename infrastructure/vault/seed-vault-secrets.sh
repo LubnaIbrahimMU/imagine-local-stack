@@ -137,4 +137,14 @@ if [ -n "$ARGO_PASS" ]; then
     echo "[+] secret/dev/argocd updated"
 fi
 
+# 8. Grafana Secrets
+GRAFANA_USER=$(jq -r '.grafana.admin_user // "admin"' "$SECRETS_FILE")
+GRAFANA_PASS=$(jq -r '.grafana.admin_password // "admin"' "$SECRETS_FILE")
+GRAFANA_URL=$(jq -r '.grafana.url // "https://vgrafana.aliien.uk"' "$SECRETS_FILE")
+
+if [ -n "$GRAFANA_PASS" ]; then
+    kubectl exec -n vault vault-0 -- vault kv put secret/dev/grafana admin-user="$GRAFANA_USER" admin-password="$GRAFANA_PASS" url="$GRAFANA_URL"
+    echo "[+] secret/dev/grafana updated"
+fi
+
 echo "=== Vault & secrets.json Hybrid Secret Sync Complete! ==="

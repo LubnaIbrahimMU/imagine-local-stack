@@ -7,9 +7,9 @@ dependencies:
   version: 2.0.0
 - name: db-service
   repository: file://../db-service
-  version: 2.0.0
+  version: 2.0.1
 - name: redis-service
   repository: file://../redis-service
   version: 2.0.0
-digest: sha256:306804c9a7cddfd34a23e6c1c1e53fe648b3bc8e183f86c635477dd09e6dcb4c
-generated: "2026-08-08T21:55:20.749793106+03:00"
+digest: sha256:6cf8b6ce50efc8c3ca581ba7de5b9963c65c7556a82211999517feb0ccebcdd5
+generated: "2026-08-09T11:34:37.609086755+03:00"

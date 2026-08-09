@@ -41,6 +41,8 @@ jobs:
     name: Harbor Container Registry Sync
     needs: lint-and-validate
     runs-on: ubuntu-latest
+    outputs:
+      harbor_available: ${{ steps.harbor_check.outputs.available }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -51,10 +53,12 @@ jobs:
           echo "Checking connection to Harbor registry at ${{ env.REGISTRY }}..."
           if nc -z -w 3 ${{ env.REGISTRY }} 443 2>/dev/null || nc -z -w 3 ${{ env.REGISTRY }} 80 2>/dev/null; then
             echo "HARBOR_AVAILABLE=true" >> $GITHUB_ENV
+            echo "available=true" >> $GITHUB_OUTPUT
           else
             echo "Harbor registry (${{ env.REGISTRY }}) is on a local private network."
             echo "Local images can be built & pushed directly via: ./scripts/build-and-push-images.sh"
             echo "HARBOR_AVAILABLE=false" >> $GITHUB_ENV
+            echo "available=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Log in to Harbor Registry
@@ -104,7 +108,9 @@ jobs:
     name: Update Helm Image Tags for Argo CD GitOps
     needs: build-and-push-harbor
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: >-
+      needs.build-and-push-harbor.outputs.harbor_available == 'true' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -113,19 +119,17 @@ jobs:
         run: |
           echo "Updating Helm image tags and Chart appVersion to commit SHA: ${{ env.IMAGE_TAG }}"
           # ./scripts/build-and-push-images.sh "${{ env.REGISTRY }}" "${{ env.HARBOR_PROJECT }}" "${{ env.IMAGE_TAG }}"
-          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|g" helm/charts/frontend-service/values.yml
-          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/values.yml
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-frontend|g" helm/charts/frontend-service/values.yaml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/values.yaml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/frontend-service/Chart.yaml
           
-          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|g" helm/charts/backend-service/values.yml
-          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yml
+          sed -i "s|repository: .*|repository: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backend|g" helm/charts/backend-service/values.yaml
+          sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yaml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/Chart.yaml
 
-          sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:\"${{ env.IMAGE_TAG }}\"|g" helm/charts/db-service/values.yml
+          sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}|g" helm/charts/db-service/values.yaml
 
-
-
-
+          helm dependency update --skip-refresh helm/charts/umbrella-app
 
       - name: Commit & Push GitOps Tag Changes
         run: |

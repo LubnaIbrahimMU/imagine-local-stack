@@ -16,7 +16,7 @@ sudo mkdir -p /mnt/data/harbor 2>/dev/null || true
 sudo chmod -R 777 /mnt/data 2>/dev/null || true
 
 # Fetch admin password dynamically from Vault (checking /dev/harbor or /harbor) or fallback to local secrets.json
-HARBOR_PASS=$(kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/dev/harbor 2>/dev/null || kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/harbor 2>/dev/null || jq -r '.harbor.admin_password // "HarborAdminPassword123"' "${SCRIPT_DIR}/../vault/secrets.json" 2>/dev/null || echo "HarborAdminPassword123")
+HARBOR_PASS=$(kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/dev/harbor 2>/dev/null || kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/harbor 2>/dev/null || jq -r '.harbor.admin_password // "Harbor12345"' "${SCRIPT_DIR}/../vault/secrets.json" 2>/dev/null || echo "Harbor12345")
 
 # Harbor chart 1.19+ writes Valkey RDB files. Chart 1.15.x uses Redis, which
 # cannot read that format. This can happen when a previous unpinned Helm

@@ -34,7 +34,9 @@ echo "=== [4/6] Deploying Self-Hosted Harbor Registry & MinIO Storage ==="
 
 if [ -f "${BASE_DIR}/infrastructure/minio/minio-setup.sh" ]; then
     chmod +x "${BASE_DIR}/infrastructure/minio/minio-setup.sh"
-    "${BASE_DIR}/infrastructure/minio/minio-setup.sh" || true
+    # Prepare MinIO's PVC path and credentials, but let Argo CD be the only
+    # owner of its Deployment, Service, and Ingress.
+    "${BASE_DIR}/infrastructure/minio/minio-setup.sh" --prerequisites-only
 fi
 
 echo "=== [5/6] Deploying Metrics Server & Argo CD GitOps Operator ==="

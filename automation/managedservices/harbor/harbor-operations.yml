@@ -14,7 +14,7 @@
     harbor_mapped_url: "{{ 'vharbor.aliien.uk' if harbor_raw_url == 'harbor.aliien.uk' else harbor_raw_url }}"
     harbor_local_url: "{{ (harbor_mapped_url if harbor_mapped_url.startswith('http://') or harbor_mapped_url.startswith('https://') else ('https://' ~ harbor_mapped_url if '.' in harbor_mapped_url else 'http://' ~ harbor_mapped_url)) | regex_replace('/+$', '') }}"
     harbor_username: "{{ (cg_spec.credentials | default({})).username | default('admin', true) }}"
-    harbor_password: "{{ (cg_spec.credentials | default({})).password | default('HarborAdminPassword123', true) }}"
+    harbor_password: "{{ (cg_spec.credentials | default({})).password | default('Harbor12345', true) }}"
     harbor_validate_certs: "{{ harbor_config.validate_certs | default(false) | bool }}"
     harbor_api_version: "{{ harbor_config.api_version | default('v2.0') }}"
     harbor_api_base_url: "{{ harbor_local_url }}/api/{{ harbor_api_version }}"

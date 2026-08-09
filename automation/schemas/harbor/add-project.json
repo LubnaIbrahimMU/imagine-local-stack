@@ -17,14 +17,14 @@
     "resources": {
       "VM": [
         {
-          "publicIP": "harbor.aliien.uk",
+          "publicIP": "vharbor.aliien.uk",
           "cloudID": ""
         }
       ]
     },
     "credentials": {
       "username": "admin",
-      "password": "HarborAdminPassword123"
+      "password": "Harbor12345"
     }
   }
 }

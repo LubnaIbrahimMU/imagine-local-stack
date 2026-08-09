@@ -8,7 +8,7 @@ set -e
 CERT_PATH="/etc/letsencrypt/live/aliien.uk/fullchain.pem"
 KEY_PATH="/etc/letsencrypt/live/aliien.uk/privkey.pem"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_FILE="${SCRIPT_DIR}/tls-secrets.yaml"
+OUTPUT_FILE="${SCRIPT_DIR}/tls-secrets.yml"
 
 # Check file existence with sudo since /etc/letsencrypt/live is restricted to root
 if ! sudo test -f "$CERT_PATH" || ! sudo test -f "$KEY_PATH"; then
