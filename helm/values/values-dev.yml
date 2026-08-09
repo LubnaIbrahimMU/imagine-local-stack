@@ -3,7 +3,9 @@ frontend-service:
   replicaCount: 1
   ingress:
     enabled: true
-    host: app.dev.mypro.local
+    host: vapp.aliien.uk
+    tls: true
+    tlsSecretName: aliien-uk-tls
   resources:
     limits:
       cpu: 150m
@@ -14,6 +16,11 @@ frontend-service:
 
 backend-service:
   replicaCount: 1
+  ingress:
+    enabled: true
+    host: vapi.aliien.uk
+    tls: true
+    tlsSecretName: aliien-uk-tls
   vault:
     enabled: true
     secretPath: secret/data/dev/database

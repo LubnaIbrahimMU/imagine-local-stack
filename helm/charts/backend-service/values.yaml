@@ -12,6 +12,13 @@ service:
   type: ClusterIP
   port: 5000
 
+ingress:
+  enabled: true
+  className: nginx
+  host: vapi.aliien.uk
+  tls: true
+  tlsSecretName: aliien-uk-tls
+
 vault:
   enabled: true
   role: app-role

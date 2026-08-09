@@ -1,12 +1,13 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-frontend-ingress
+  name: {{ .Release.Name }}-backend-ingress
+  labels:
+    app.kubernetes.io/name: backend-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.ingress.className | quote }}
-    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
-    nginx.ingress.kubernetes.io/ssl-redirect: {{ .Values.ingress.tls | quote }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   {{- if .Values.ingress.tls }}
@@ -23,7 +24,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Release.Name }}-frontend
+                name: {{ .Release.Name }}-backend-service
                 port:
                   number: {{ .Values.service.port }}
 {{- end }}

@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
-    link.argocd.argoproj.io/external-link: http://app.dev.mypro.local
+    link.argocd.argoproj.io/external-link: https://vapp.aliien.uk
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

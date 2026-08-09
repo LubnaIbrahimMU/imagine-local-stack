@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    link.argocd.argoproj.io/external-link: https://vapi.aliien.uk
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
