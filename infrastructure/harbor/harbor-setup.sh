@@ -10,10 +10,8 @@ kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Ensuring host directory permissions for Harbor..."
 if command -v minikube &>/dev/null; then
-    minikube ssh "sudo mkdir -p /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis && sudo chown -R 999:999 /mnt/data/redis /mnt/data/postgres && sudo chmod -R 777 /mnt/data" &>/dev/null
+    minikube ssh "sudo mkdir -p /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis && sudo chown -R 999:999 /mnt/data/redis /mnt/data/postgres && sudo chmod -R 700 /mnt/data/postgres && sudo chmod -R 770 /mnt/data/redis && sudo chmod -R 777 /mnt/data/harbor/registry" &>/dev/null
 fi
-sudo mkdir -p /mnt/data/harbor 2>/dev/null || true
-sudo chmod -R 777 /mnt/data 2>/dev/null || true
 
 # Fetch admin password dynamically from Vault (checking /dev/harbor or /harbor) or fallback to local secrets.json
 HARBOR_PASS=$(kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/dev/harbor 2>/dev/null || kubectl exec -n vault vault-0 -- vault kv get -field=admin-password secret/harbor 2>/dev/null || jq -r '.harbor.admin_password // "Harbor12345"' "${SCRIPT_DIR}/../vault/secrets.json" 2>/dev/null || echo "Harbor12345")
