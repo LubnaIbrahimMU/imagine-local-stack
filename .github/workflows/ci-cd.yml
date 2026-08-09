@@ -35,9 +35,7 @@ jobs:
   build-and-push-harbor:
     name: Harbor Container Registry Sync
     needs: lint-and-validate
-    # Harbor is hosted on the local lab network, so this job must run on a
-    # runner that can resolve and reach vharbor.aliien.uk.
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
