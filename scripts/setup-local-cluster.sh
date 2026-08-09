@@ -12,8 +12,8 @@ echo "=== [1/6] Initializing Minikube Cluster & Storage Directories ==="
 if command -v minikube &>/dev/null; then
     minikube status &>/dev/null || minikube start --cpus=4 --memory=6144 --driver=docker --addons=ingress,metrics-server
     
-    # Ensure minikube host directory permissions
-    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres && sudo chown -R 999:999 /mnt/data/postgres" &>/dev/null || true
+    # Clean stale dump files and ensure host directory permissions
+    minikube ssh "sudo mkdir -p /mnt/data/vault /mnt/data/minio /mnt/data/harbor/registry /mnt/data/postgres /mnt/data/redis /mnt/data/backups && sudo rm -rf /mnt/data/redis/* && sudo chmod -R 777 /mnt/data && sudo chmod 700 /mnt/data/postgres && sudo chown -R 999:999 /mnt/data/postgres" &>/dev/null || true
 fi
 
 echo "--> Applying Platform Namespaces..."
