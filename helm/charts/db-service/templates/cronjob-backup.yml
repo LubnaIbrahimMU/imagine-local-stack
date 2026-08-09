@@ -16,6 +16,10 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           containers:
             - name: db-backup
               image: {{ .Values.backupCronJob.image | quote }}

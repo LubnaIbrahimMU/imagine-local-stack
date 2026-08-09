@@ -1,6 +1,9 @@
 mysql:
-  image: vharbor.aliien.uk/pro4/mypro-backup:febef99fd996b3f270676a2953bcfea9851ebcbf
+  image: mysql:8.0
   existingSecret: mypro-dev-db-secret
+
+imagePullSecrets:
+  - name: harbor-pull-secret
 
 persistence:
   enabled: true

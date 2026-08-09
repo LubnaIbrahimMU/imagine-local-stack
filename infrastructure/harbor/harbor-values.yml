@@ -3,13 +3,14 @@ expose:
   type: ingress
   tls:
     enabled: true
-    secretName: aliien-uk-tls
+    certSource: secret
+    secret:
+      secretName: aliien-uk-tls
   ingress:
     hosts:
       core: vharbor.aliien.uk
     controller: default
     className: nginx
-    secretName: aliien-uk-tls
     annotations:
       ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/ssl-redirect: "true"

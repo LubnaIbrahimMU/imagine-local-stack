@@ -26,11 +26,38 @@ kubectl apply -f "${BASE_DIR}/infrastructure/pv-local.yml"
 echo "=== [2/6] Deploying NGINX Ingress Controller ==="
 "${BASE_DIR}/infrastructure/nginx-ingress/install-nginx.sh"
 
-echo "=== [3/6] Initializing & Unsealing HashiCorp Vault ==="
+echo "=== [3/6] Applying TLS Secrets ==="
+if [ -f "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh" ]; then
+    chmod +x "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh"
+    "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh"
+fi
+
+echo "=== [4/6] Initializing & Unsealing HashiCorp Vault ==="
 "${BASE_DIR}/infrastructure/vault/vault-init.sh"
 
-echo "=== [4/6] Deploying Self-Hosted Harbor Registry & MinIO Storage ==="
+echo "=== [5/6] Deploying Self-Hosted Harbor Registry & MinIO Storage ==="
 "${BASE_DIR}/infrastructure/harbor/harbor-setup.sh"
+
+# Harbor must serve the user-provided TLS secret. Verify this immediately so a
+# generated chart certificate cannot cause ImagePullBackOff later.
+HARBOR_TLS_SECRET=$(kubectl get ingress harbor-ingress -n harbor -o jsonpath='{.spec.tls[0].secretName}')
+if [ "${HARBOR_TLS_SECRET}" != "aliien-uk-tls" ]; then
+    echo "[ERROR] Harbor ingress uses '${HARBOR_TLS_SECRET}', expected 'aliien-uk-tls'."
+    exit 1
+fi
+
+# Application images are stored in a private Harbor project. Create pull
+# credentials before Argo CD starts the application workloads.
+HARBOR_PULL_PASSWORD=$(kubectl get secret harbor-core -n harbor -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d)
+for namespace in dev uat prd; do
+    kubectl create secret docker-registry harbor-pull-secret \
+        --namespace "${namespace}" \
+        --docker-server vharbor.aliien.uk \
+        --docker-username admin \
+        --docker-password "${HARBOR_PULL_PASSWORD}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+done
+unset HARBOR_PULL_PASSWORD
 
 if [ -f "${BASE_DIR}/infrastructure/minio/minio-setup.sh" ]; then
     chmod +x "${BASE_DIR}/infrastructure/minio/minio-setup.sh"
@@ -39,7 +66,7 @@ if [ -f "${BASE_DIR}/infrastructure/minio/minio-setup.sh" ]; then
     "${BASE_DIR}/infrastructure/minio/minio-setup.sh" --prerequisites-only
 fi
 
-echo "=== [5/6] Deploying Metrics Server & Argo CD GitOps Operator ==="
+echo "=== [6/6] Deploying Metrics Server & Argo CD GitOps Operator ==="
 "${BASE_DIR}/infrastructure/metrics-server/install-metrics-server.sh"
 "${BASE_DIR}/infrastructure/argocd/install-argocd.sh"
 
@@ -50,20 +77,6 @@ fi
 
 if [ -f "${BASE_DIR}/gitops/argo-app-of-apps/argo.yml" ]; then
     kubectl apply -f "${BASE_DIR}/gitops/argo-app-of-apps/argo.yml" || true
-fi
-
-echo "=== [6/6] Applying TLS Secrets across All Platform Namespaces ==="
-if [ -f "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh" ]; then
-    chmod +x "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh"
-    "${BASE_DIR}/infrastructure/cert-manager/generate-tls-secrets.sh" || true
-fi
-
-# Automatically configure Minikube Docker daemon to trust Harbor registry TLS certificate
-if kubectl get secret aliien-uk-tls -n harbor &>/dev/null; then
-    kubectl get secret aliien-uk-tls -n harbor -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/harbor-ca.crt 2>/dev/null || true
-    minikube ssh "sudo mkdir -p /etc/docker/certs.d/vharbor.aliien.uk" &>/dev/null || true
-    minikube cp /tmp/harbor-ca.crt /tmp/harbor-ca.crt &>/dev/null || true
-    minikube ssh "sudo mv /tmp/harbor-ca.crt /etc/docker/certs.d/vharbor.aliien.uk/ca.crt && sudo systemctl restart docker" &>/dev/null || true
 fi
 
 echo "=== Syncing Reboot Persistence & Local Host Resolution ==="

@@ -162,7 +162,7 @@ fi
 DB_VALUES="${PROJECT_ROOT}/helm/charts/db-service/values.yaml"
 if [ -f "${DB_VALUES}" ]; then
   echo "--> Updating Helm db-service backup image value..."
-  sed -i "s|image: .*|image: ${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}|g" "${DB_VALUES}"
+  sed -i "/^backupCronJob:/,/^[^[:space:]]/ s|^  image: .*|  image: ${FULL_REGISTRY}/mypro-backup:${VERSION_TAG}|" "${DB_VALUES}"
 fi
 
 # Argo CD renders the committed dependency archives under umbrella-app/charts.

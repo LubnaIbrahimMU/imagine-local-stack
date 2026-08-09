@@ -5,6 +5,9 @@ image:
   tag: "febef99fd996b3f270676a2953bcfea9851ebcbf"
   pullPolicy: IfNotPresent
 
+imagePullSecrets:
+  - name: harbor-pull-secret
+
 service:
   type: ClusterIP
   port: 3000

@@ -90,7 +90,7 @@ jobs:
           sed -i "s|tag: .*|tag: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/values.yaml
           sed -i "s|appVersion: .*|appVersion: \"${{ env.IMAGE_TAG }}\"|g" helm/charts/backend-service/Chart.yaml
 
-          sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}|g" helm/charts/db-service/values.yaml
+          sed -i "/^backupCronJob:/,/^[^[:space:]]/ s|^  image: .*|  image: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/mypro-backup:${{ env.IMAGE_TAG }}|" helm/charts/db-service/values.yaml
 
           helm dependency update --skip-refresh helm/charts/umbrella-app
 
