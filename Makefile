@@ -77,5 +77,12 @@ test-failover:
 test-backup:
 	@./scripts/backup-restore-db.sh dev
 
+view-backup:
+	@./scripts/backup-restore-db.sh dev
+
+view-db-users:
+	@kubectl exec -n dev app-mypro-dev-db-primary-0 -- mysql -u appuser -papp_password_123 appdb -e "SELECT * FROM users;"
+
 clean:
 	@kubectl delete namespace dev uat prd --ignore-not-found=true
+
