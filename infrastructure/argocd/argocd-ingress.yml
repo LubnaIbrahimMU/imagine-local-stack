@@ -19,7 +19,7 @@ spec:
     - hosts:
         - argocd.mypro.local
         - vargocd.aliien.uk
-      secretName: argocd-secret-tls
+      secretName: aliien-uk-tls
   rules:
     - host: argocd.mypro.local
       http:
